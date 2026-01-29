@@ -1,12 +1,14 @@
-export const openPreview = (testSpec, { mode }) => {
+import { normalizeTest } from './models.js';
+
+export const openPreview = (testDraft) => {
+    const cleanData = normalizeTest(testDraft);
     const previewWindow = window.open('../pages/builder-preview.html', '_blank');
     
-    // Use a listener to wait for the window to be ready, then send data
-    const readyListener = (event) => {
+    const listener = (event) => {
         if (event.data.type === 'PREVIEW_READY') {
-            previewWindow.postMessage({ type: 'IELTS_PREVIEW_LOAD', payload: testSpec, mode }, '*');
-            window.removeEventListener('message', readyListener);
+            previewWindow.postMessage({ type: 'IELTS_PREVIEW_LOAD', payload: cleanData }, '*');
+            window.removeEventListener('message', listener);
         }
     };
-    window.addEventListener('message', readyListener);
+    window.addEventListener('message', listener);
 };

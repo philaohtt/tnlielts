@@ -1,62 +1,44 @@
-import { createEmptyTest } from './models.js';
-import { normalizeTestSpec } from './rules.js';
+import { createEmptyTest, normalizeTest } from './models.js';
+
+// Persistence bridge for multi-page prototype
+const SESSION_KEY = 'ielts_builder_draft';
+const loadSession = () => {
+    const saved = sessionStorage.getItem(SESSION_KEY);
+    return saved ? JSON.parse(saved) : createEmptyTest();
+};
 
 let state = {
-    testDraft: normalizeTestSpec(createEmptyTest()),
-    testPublished: null,
-    ui: {
-        selectedSectionId: null,
-        selectedPartId: null,
-        selectedQuestionId: null,
-        issues: [],
-        dirty: false
-    }
+    testDraft: loadSession(),
+    ui: { selectedSectionId: null, selectedPartId: null, selectedQuestionId: null, issues: [] }
 };
 
 const listeners = new Set();
-
 export const getState = () => JSON.parse(JSON.stringify(state));
-
-export const subscribe = (listener) => {
-    listeners.add(listener);
-    return () => listeners.delete(listener);
-};
+export const subscribe = (l) => { listeners.add(l); return () => listeners.delete(l); };
 
 export const dispatch = (action) => {
     state = reducer(state, action);
+    sessionStorage.setItem(SESSION_KEY, JSON.stringify(state.testDraft));
     listeners.forEach(l => l(state));
 };
 
 function reducer(state, action) {
-    let newDraft = state.testDraft ? JSON.parse(JSON.stringify(state.testDraft)) : createEmptyTest();
-
+    let draft = JSON.parse(JSON.stringify(state.testDraft));
     switch (action.type) {
-        case 'UPDATE_FIELD': {
-            const { path, value } = action.payload;
-            const keys = path.split('.');
-            let current = newDraft;
-            for (let i = 0; i < keys.length - 1; i++) {
-                if (!current[keys[i]]) current[keys[i]] = {};
-                current = current[keys[i]];
-            }
-            current[keys[keys.length - 1]] = value;
+        case 'UPDATE_FIELD':
+            const keys = action.payload.path.split('.');
+            let curr = draft;
+            for (let i = 0; i < keys.length - 1; i++) curr = curr[keys[i]] = curr[keys[i]] || {};
+            curr[keys[keys.length - 1]] = action.payload.value;
             break;
-        }
         case 'ADD_SECTION':
-            newDraft.sections.push(action.payload);
+            draft.sections.push(action.payload);
             break;
-        case 'DELETE_SECTION':
-            newDraft.sections = newDraft.sections.filter(s => s.id !== action.payload);
-            break;
-        case 'SELECT':
-            return { ...state, ui: { ...state.ui, ...action.payload } };
         case 'SET_ISSUES':
             return { ...state, ui: { ...state.ui, issues: action.payload } };
-        case 'PUBLISH':
-            return { ...state, testPublished: JSON.parse(JSON.stringify(state.testDraft)), ui: { ...state.ui, dirty: false } };
-        default:
-            return state;
+        case 'SELECT':
+            return { ...state, ui: { ...state.ui, ...action.payload } };
+        default: return state;
     }
-
-    return { ...state, testDraft: normalizeTestSpec(newDraft), ui: { ...state.ui, dirty: true } };
+    return { ...state, testDraft: normalizeTest(draft) };
 }
