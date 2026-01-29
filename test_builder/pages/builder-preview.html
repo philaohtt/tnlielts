@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Exam Preview - IELTS Builder</title>
+    <link rel="stylesheet" href="../../style.css">
+</head>
+<body>
+    <div class="taker-shell">
+        <header class="taker-topbar">
+            <div id="test-title" style="font-weight: bold;">IELTS Preview</div>
+            <div class="section-nav" id="section-tabs"></div>
+            <div id="timer-display" style="font-family: monospace; font-weight: bold;"></div>
+        </header>
+        <div class="taker-container">
+            <aside class="q-navigator">
+                <div style="font-weight: bold; font-size: 14px; color: #555;">Question Navigator</div>
+                <div class="q-grid" id="q-navigator-grid"></div>
+            </aside>
+            <main class="exam-main">
+                <article class="stimulus-pane" id="stimulus-content"></article>
+                <section class="question-pane" id="questions-content"></section>
+            </main>
+        </div>
+        <footer class="taker-bottombar">
+            <div style="display: flex; gap: 10px;">
+                <button class="btn btn-outline">Back</button>
+                <button class="btn btn-outline">Next</button>
+            </div>
+            <button class="btn btn-primary" style="background: #555;" onclick="window.close()">Close Preview</button>
+        </footer>
+    </div>
+    <script type="module">
+        let currentTest = null;
+        let activeSectionIndex = 0;
+
+        window.addEventListener('message', (event) => {
+            if (event.data.type === 'IELTS_PREVIEW_LOAD') {
+                currentTest = event.data.payload;
+                renderTest();
+                window.opener.postMessage({ type: 'PREVIEW_ACK' }, '*');
+            }
+        });
+
+        window.opener?.postMessage({ type: 'PREVIEW_READY' }, '*');
+
+        function renderTest() {
+            if (!currentTest) return;
+            document.getElementById('test-title').textContent = currentTest.title || 'Untitled Test';
+            document.getElementById('timer-display').textContent = `Time: ${currentTest.durationMinutes || 60}:00`;
+            renderSectionTabs();
+            renderSection(0);
+        }
+
+        function renderSectionTabs() {
+            const container = document.getElementById('section-tabs');
+            container.innerHTML = (currentTest.sections || []).map((section, idx) =>
+                `<div class="section-tab ${idx === activeSectionIndex ? 'active' : ''}" data-index="${idx}">
+                    ${section.title || `Section ${idx + 1}`}
+                </div>`
+            ).join('');
+            container.querySelectorAll('.section-tab').forEach(tab => {
+                tab.onclick = () => renderSection(parseInt(tab.dataset.index));
+            });
+        }
+
+        function renderSection(index) {
+            if (!currentTest.sections || !currentTest.sections[index]) return;
+            activeSectionIndex = index;
+            const section = currentTest.sections[index];
+            document.querySelectorAll('.section-tab').forEach((t, i) => t.classList.toggle('active', i === index));
+
+            const stimulusPane = document.getElementById('stimulus-content');
+            stimulusPane.innerHTML = (section.parts || []).map(p => `<h3>${p.title}</h3><div>${p.stimulus?.content || ''}</div>`).join('<hr style="margin: 20px 0;">');
+
+            const questionsPane = document.getElementById('questions-content');
+            questionsPane.innerHTML = '';
+            let qNum = 1;
+            (section.parts || []).forEach(part => {
+                (part.questions || []).forEach(q => {
+                    questionsPane.innerHTML += renderQuestionUI(q, qNum++);
+                });
+            });
+            
+            renderNavigator(qNum - 1);
+        }
+
+        function renderNavigator(qCount) {
+             document.getElementById('q-navigator-grid').innerHTML = Array.from({length: qCount}, (_, i) => `<div class="q-box">${i + 1}</div>`).join('');
+        }
+
+        function renderQuestionUI(q, number) {
+            let inputHtml = '<p style="color:red">Unsupported type</p>';
+            const q_id = `q_${q.id}`;
+            switch (q.type) {
+                case 'mcq_single':
+                case 'true_false_not_given':
+                    inputHtml = (q.options || []).map(opt => `<div><label><input type="radio" name="${q_id}"> ${opt.text}</label></div>`).join('');
+                    break;
+                case 'mcq_multi':
+                    inputHtml = (q.options || []).map(opt => `<div><label><input type="checkbox"> ${opt.text}</label></div>`).join('');
+                    break;
+                case 'short_answer':
+                case 'sentence_completion':
+                    inputHtml = `<input type="text" class="form-control" style="max-width: 300px;">`;
+                    break;
+                case 'dropdown_fill':
+                    inputHtml = `<select class="form-control" style="max-width: 300px;"><option>Select...</option></select>`;
+                    break;
+                case 'essay':
+                    inputHtml = `<textarea class="form-control" style="height: 200px;"></textarea>`;
+                    break;
+            }
+            return `<div style="margin-bottom: 25px;">
+                        <label style="font-weight: bold; display: block; margin-bottom: 8px;">${number}. ${q.prompt}</label>
+                        ${inputHtml}
+                    </div>`;
+        }
+    </script>
+</body>
+</html>

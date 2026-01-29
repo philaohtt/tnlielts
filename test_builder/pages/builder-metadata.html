@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Test Metadata - IELTS Builder</title>
+    <link rel="stylesheet" href="../../style.css">
+    <style>
+        .split-layout { display: grid; grid-template-columns: 1fr 350px; gap: 32px; align-items: start; }
+        .metadata-card { background: white; padding: 24px; border-radius: 8px; border: 1px solid var(--border-color); }
+        .summary-card { background: #fff; border: 1px solid var(--border-color); border-radius: 8px; position: sticky; top: 32px; }
+        .summary-header { padding: 16px; border-bottom: 1px solid var(--border-color); font-weight: bold; background: #f8f9fa; border-radius: 8px 8px 0 0; }
+        .section-item { padding: 16px; border-bottom: 1px solid var(--border-color); display: flex; align-items: center; justify-content: space-between; }
+        .section-item:last-child { border-bottom: none; }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <header class="topbar">
+            <div style="display:flex; align-items:center; gap:20px;">
+                <div style="font-weight: bold; color: var(--primary-blue);">IELTS Builder</div>
+                <a href="builder-tests.html" style="color:var(--text-muted); text-decoration:none; font-size:14px;">← Back to Tests</a>
+            </div>
+            <div style="display:flex; gap:12px;">
+                 <a href="builder-content.html" class="btn btn-outline">Manage Content →</a>
+            </div>
+        </header>
+        <aside class="sidebar">
+            <a href="#" class="nav-item">Dashboard</a>
+            <a href="builder-tests.html" class="nav-item active">Tests</a>
+            <a href="builder-qbank.html" class="nav-item">Question Bank</a>
+        </aside>
+        <main class="main-content">
+            <div style="margin-bottom:24px; display:flex; justify-content:space-between; align-items:center;">
+                <h1>Test Configuration</h1>
+                <div style="display:flex; gap:12px;">
+                    <button class="btn btn-outline" data-action="preview">Preview Exam</button>
+                    <button class="btn btn-primary" data-action="publish">Publish Test</button>
+                </div>
+            </div>
+            <div class="split-layout">
+                <div class="metadata-card">
+                    <div class="form-group">
+                        <label for="test-title-input">Test Title</label>
+                        <input id="test-title-input" type="text" class="form-control" data-path="title" placeholder="e.g. Academic Reading Mock 2024">
+                    </div>
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px;">
+                        <div class="form-group">
+                            <label for="test-code-input">Test Code</label>
+                            <input id="test-code-input" type="text" class="form-control" data-path="code">
+                        </div>
+                        <div class="form-group">
+                            <label for="test-skill-select">Test Skill</label>
+                            <select id="test-skill-select" class="form-control" data-path="skill">
+                                <option value="listening">Listening</option>
+                                <option value="reading" selected>Reading</option>
+                                <option value="writing">Writing</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="duration-input">Duration (minutes)</label>
+                        <input id="duration-input" type="number" class="form-control" data-path="durationMinutes" style="width: 120px;">
+                    </div>
+                    <div class="form-group">
+                        <label for="instructions-area">Instructions</label>
+                        <textarea id="instructions-area" class="form-control" data-path="instructions" placeholder="Enter instructions for the candidate..."></textarea>
+                    </div>
+                </div>
+                <div class="summary-card">
+                    <div class="summary-header">Test Structure</div>
+                    <div id="structure-list">
+                        <!-- Dynamic -->
+                    </div>
+                    <div style="padding:16px;">
+                        <button class="btn btn-outline" data-action="add-section" style="width:100%; justify-content:center;">+ Add Section</button>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+    <div id="validation-issues" style="position:fixed; bottom:20px; right:20px; max-width:300px; z-index:9999;"></div>
+    <script type="module" src="../ui/builderApp.js"></script>
+</body>
+</html>
