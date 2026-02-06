@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IELTS Test Preview</title>
+    <style>
+        :root {
+            --primary: #006ce1;
+            --bg: #f4f7fa;
+            --surface: #ffffff;
+            --text-main: #1a202c;
+            --text-muted: #64748b;
+            --border: #e2e8f0;
+            --radius: 12px;
+            --font: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            --success: #166534;
+            --success-bg: #dcfce7;
+            --success-border: #86efac;
+        }
+        * { box-sizing: border-box; }
+        body {
+            font-family: var(--font);
+            background-color: var(--bg);
+            color: var(--text-main);
+            margin: 0;
+            padding: 0;
+        }
+        .preview-header {
+            background: var(--surface);
+            padding: 16px 32px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .preview-header h1 {
+            font-size: 20px;
+            margin: 0;
+        }
+        .preview-header .back-link {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--primary);
+            text-decoration: none;
+            padding: 8px 16px;
+            border-radius: 8px;
+            background: #eff6ff;
+        }
+        .preview-header .back-link:hover {
+            background: #dbeafe;
+        }
+        main {
+            max-width: 900px;
+            margin: 32px auto;
+            padding: 0 24px;
+        }
+        .error-container {
+            background: var(--surface);
+            padding: 40px;
+            border-radius: var(--radius);
+            text-align: center;
+            border: 1px solid var(--border);
+        }
+        .section-container {
+            background: var(--surface);
+            border-radius: var(--radius);
+            border: 1px solid var(--border);
+            margin-bottom: 32px;
+            overflow: hidden;
+        }
+        .section-header {
+            padding: 20px 24px;
+            border-bottom: 1px solid var(--border);
+            background: #fdfdfe;
+        }
+        .section-header h2 {
+            font-size: 18px;
+            margin: 0 0 8px 0;
+        }
+        .section-header p {
+            font-size: 14px;
+            color: var(--text-muted);
+            margin: 0;
+            line-height: 1.5;
+            white-space: pre-wrap;
+        }
+        .blocks-area {
+            padding: 24px;
+        }
+        .block-wrapper {
+            margin-bottom: 40px;
+        }
+        .block-wrapper:last-child {
+            margin-bottom: 0;
+        }
+        .unknown-block {
+            padding: 24px;
+            background: #fffbeb;
+            border: 1px solid #fef3c7;
+            border-radius: 8px;
+            color: #b45309;
+            font-family: monospace;
+            font-size: 13px;
+        }
+        .cbt-instruction-box {
+            background-color: #f3f9ff;
+            border: 1px solid #c2e0ff;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 4px;
+            line-height: 1.5;
+            font-size: 15px;
+        }
+        .cbt-instruction-box > strong {
+            font-weight: bold;
+            display: block;
+            margin-bottom: 4px;
+        }
+
+        /* --- MCQ Block Styles --- */
+        .mcq-question { padding: 16px 0; border-top: 1px solid #e0e0e0; }
+        .mcq-question:first-child { border-top: none; padding-top: 0; }
+        .mcq-prompt { font-weight: 600; margin-bottom: 12px; }
+        .mcq-option { display: flex; align-items: center; gap: 8px; padding: 8px; border-left: 4px solid transparent; }
+        .mcq-option.is-preview-correct { background-color: var(--success-bg); border-left-color: var(--success); }
+        .mcq-letter { font-weight: bold; }
+        .mcq-correct-label { margin-left: auto; font-size: 11px; font-weight: bold; color: var(--success); text-transform: uppercase; }
+
+        /* --- Gap Fill Block Styles --- */
+        .passage-area { line-height: 2.5; font-size: 16px; }
+        .gap-preview-ans {
+            color: var(--success); background-color: var(--success-bg);
+            padding: 2px 10px; border-radius: 4px; font-weight: bold;
+            border: 1px solid var(--success-border);
+            display: inline-flex; white-space: nowrap; align-items: center;
+        }
+
+        /* --- Matching Block Styles --- */
+        .matching-prompt { font-weight: bold; margin-bottom: 15px; }
+        .matching-container { display: grid; grid-template-columns: 1fr 280px; gap: 24px; }
+        .matching-col-title { font-weight: bold; text-transform: uppercase; color: var(--text-muted); font-size: 12px; margin-bottom: 12px; }
+        .matching-item-row { display: flex; align-items: center; gap: 15px; padding: 8px 0; border-bottom: 1px solid var(--border); }
+        .matching-item-text { flex: 1; }
+        .matching-drop-zone { border: 1px solid var(--success-border); background: #fafff5; border-radius: 6px; padding: 4px; min-height: 38px; }
+        .matching-pill { display: inline-flex; align-items: center; background: var(--success-bg); border: 1px solid var(--success-border); color: var(--success); border-radius: 4px; padding: 6px 10px; font-size: 13px; width: 100%; }
+        .matching-pill-letter { font-weight: bold; background: #bbf7d0; padding: 2px 6px; border-radius: 3px; margin-right: 8px; }
+        .matching-pill-text { line-height: 1.3; }
+        .matching-col-right { border: 1px solid var(--border); border-radius: 8px; padding: 16px; background: #fcfcfd; }
+        .matching-bank-area { display: flex; flex-wrap: wrap; gap: 8px; }
+        .matching-bank-area .matching-pill { background: white; color: var(--text-main); border-color: #cbd5e0; }
+        .matching-bank-area .matching-pill-letter { background: #e2e8f0; }
+
+        /* --- Visual Matching Styles --- */
+        .mc-layout { display: flex; gap: 20px; align-items: flex-start; }
+        .mc-canvas-side { flex: 3; min-width: 0; }
+        .mc-bank-side { flex: 1.2; min-width: 200px; }
+        .mc-img-container { position: relative; border: 1px solid var(--border); line-height: 0; display: inline-block; max-width: 100%; }
+        .mc-img-container img { max-width: 100%; display: block; }
+        .mc-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
+        .mc-zone { position: absolute; display: flex; align-items: center; justify-content: center; box-sizing: border-box; }
+        .mc-zone--gap { border: 1px solid var(--success); background: var(--success-bg); border-radius: 4px; padding: 2px; }
+        .mc-placed-pill { width: 100%; height: 100%; font-weight: 700; color: var(--success); text-align: center; line-height: 1.1; }
+        .mc-bank-pill { background: #fff; border: 1px solid var(--border); padding: 8px 12px; border-radius: 6px; font-size: 14px; margin-bottom: 8px; }
+        
+        /* --- Visual Gap Fill Styles --- */
+        .map-container { position: relative; display: inline-block; max-width: 100%; border: 1px solid var(--border); }
+        .map-img { display: block; max-width: 100%; }
+        .map-text-label, .map-gap-box { position: absolute; box-sizing: border-box; }
+        .map-text-label { display: flex; align-items: center; justify-content: center; text-align: center; }
+        .map-preview-ans {
+            width: 100%; height: 100%; border: 1px solid var(--success); background: var(--success-bg);
+            font-weight: bold; color: var(--success); display: flex; align-items: center;
+            justify-content: center; text-align: center; line-height: 1.1; overflow: hidden; padding: 2px;
+        }
+
+        /* --- Writing Task Styles --- */
+        .writing-instructions-text {
+            background: #f8fafc;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 20px;
+            font-size: 15px;
+            line-height: 1.6;
+            white-space: pre-wrap;
+        }
+        .writing-prompt-html {
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 20px;
+            background: white;
+            line-height: 1.6;
+            font-size: 16px;
+        }
+
+    </style>
+</head>
+<body>
+    <header class="preview-header">
+        <h1 id="test-title">Test Preview</h1>
+        <a href="#" id="back-link" class="back-link">Back to Editor</a>
+    </header>
+    <main id="preview-container">
+        <!-- Content will be injected here -->
+    </main>
+
+    <script type="module">
+        import { DB } from "./db.tests.js";
+
+        /**
+         * Gets the URL to return to the editor.
+         * Checks sessionStorage first, falls back to Shell.
+         * @returns {string} The editor URL to return to.
+         */
+        function getReturnEditorUrl() {
+            const lastEditorUrl = sessionStorage.getItem('last_editor_url');
+            if (lastEditorUrl && lastEditorUrl.trim()) {
+                return lastEditorUrl.trim();
+            }
+            return 'Test_Editor_Shell.html';
+        }
+
+        /**
+         * Escapes HTML to prevent XSS.
+         * @param {string} str The string to escape.
+         * @returns {string} The escaped string.
+         */
+        function escapeHtml(str) {
+            return (str ?? '').toString()
+                .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+        }
+
+        const blockRenderers = {
+            /**
+             * Renders an MCQ Set block.
+             * @param {object} data The block data.
+             * @returns {HTMLElement} The rendered block element.
+             */
+            mcq_set: function(data) {
+                const div = document.createElement('div');
+                div.innerHTML = `
+                    <div class="cbt-instruction-box">
+                        <strong>${escapeHtml(data?.numbering || '')}</strong>
+                        <em>${escapeHtml(data?.instructions || '')}</em>
+                    </div>
+                    <div class="mcq-questions-list">
+                        ${(data.questions || []).map((q, i) => `
+                            <div class="mcq-question">
+                                <div class="mcq-prompt">${i + 1}. ${escapeHtml(q.prompt || '')}</div>
+                                <div class="mcq-options">
+                                    ${(q.options || []).map((opt, idx) => {
+                                        const isCorrect = (q.correctIndices || []).includes(idx);
+                                        return `
+                                            <div class="mcq-option ${isCorrect ? 'is-preview-correct' : ''}">
+                                                <span class="mcq-letter">${String.fromCharCode(65 + idx)}</span>
+                                                <span class="mcq-text">${escapeHtml(opt)}</span>
+                                                ${isCorrect ? '<span class="mcq-correct-label">✓ Correct</span>' : ''}
+                                            </div>
+                                        `;
+                                    }).join('')}
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+                return div;
+            },
+
+            /**
+             * Renders a Gap Fill block.
+             * @param {object} data The block data.
+             * @returns {HTMLElement} The rendered block element.
+             */
+            gap_fill: function(data) {
+                const div = document.createElement('div');
+                const temp = document.createElement('div');
+                temp.innerHTML = data?.passageHtml || '';
+                
+                const markers = temp.querySelectorAll('.gap-marker');
+                markers.forEach((el, i) => {
+                    const idx = i + 1;
+                    const gapId = el.dataset.id;
+                    const gapData = (data?.gaps || []).find(g => g.id === gapId);
+                    const ansText = gapData ? gapData.answers.join(' / ') : el.textContent;
+                    el.outerHTML = `<span class="gap-preview-ans">(${idx}) ${escapeHtml(ansText)}</span>`;
+                });
+
+                div.innerHTML = `
+                    <div class="cbt-instruction-box">
+                        <strong>${escapeHtml(data?.numbering || '')}</strong>
+                        <em>${escapeHtml(data?.instructions || '')}</em>
+                    </div>
+                    <div class="passage-area">${temp.innerHTML}</div>
+                `;
+                return div;
+            },
+
+            /**
+             * Renders a Matching block.
+             * @param {object} data The block data.
+             * @returns {HTMLElement} The rendered block element.
+             */
+            matching: function(data) {
+                const div = document.createElement('div');
+                const getPillHtml = (label) => {
+                    const idx = label.charCodeAt(0) - 65;
+                    const optText = data.options[idx]?.text || '';
+                    return `
+                        <div class="matching-pill">
+                            ${data.config.showLetters ? `<span class="matching-pill-letter">${label}</span>` : ''}
+                            <span class="matching-pill-text">${escapeHtml(optText)}</span>
+                        </div>`;
+                };
+
+                div.innerHTML = `
+                    <div class="cbt-instruction-box">
+                        <strong>${escapeHtml(data?.numbering || '')}</strong>
+                        <em>${escapeHtml(data?.instructions || '')}</em>
+                    </div>
+                    ${data.prompt ? `<div class="matching-prompt">${escapeHtml(data.prompt)}</div>` : ''}
+                    <div class="matching-container">
+                        <div class="matching-col-left">
+                            <div class="matching-col-title">${escapeHtml(data.config.itemColumnTitle || 'Items')}</div>
+                            ${(data.items || []).map((item, idx) => `
+                                <div class="matching-item-row">
+                                    <div class="matching-item-text">${idx + 1}. ${escapeHtml(item.text)}</div>
+                                    <div class="matching-drop-zone">${item.key ? getPillHtml(item.key) : ''}</div>
+                                </div>
+                            `).join('')}
+                        </div>
+                        <div class="matching-col-right">
+                            <div class="matching-col-title">${escapeHtml(data.config.optionColumnTitle || 'Options')}</div>
+                            <div class="matching-bank-area">
+                                ${(data.options || []).map((opt, i) => getPillHtml(String.fromCharCode(65 + i))).join('')}
+                            </div>
+                        </div>
+                    </div>
+                `;
+                return div;
+            },
+
+            /**
+             * Renders a Visual Matching block.
+             * @param {object} data The block data.
+             * @returns {HTMLElement} The rendered block element.
+             */
+            matching_visual: function(data) {
+                const div = document.createElement('div');
+                if (!data.image?.dataUrl) {
+                    div.innerHTML = `<div class="unknown-block">Image missing for this block.</div>`;
+                    return div;
+                }
+                const correctAnswers = Object.fromEntries(
+                    (data.zones || []).filter(z => z.kind !== 'text' && z.correctOptionId).map(z => [z.id, z.correctOptionId])
+                );
+
+                const zoneHtml = (data.zones || []).map(z => {
+                    const style = `left:${z.x*100}%; top:${z.y*100}%; width:${z.w*100}%; height:${z.h*100}%; font-size:${z.fontSize || 14}px;`;
+                    if (z.kind === 'text') {
+                        return `<div class="mc-zone mc-zone--static" style="${style}">${escapeHtml(z.text)}</div>`;
+                    }
+                    const oid = correctAnswers[z.id];
+                    const opt = (data.options || []).find(o => o.id === oid);
+                    return `
+                        <div class="mc-zone mc-zone--gap" style="${style}">
+                            ${opt ? `<div class="mc-placed-pill">(${z.n}) ${escapeHtml(opt.text)}</div>` : `<div class="mc-zone-num">${z.n}</div>`}
+                        </div>`;
+                }).join('');
+
+                div.innerHTML = `
+                    <div class="cbt-instruction-box">
+                        <strong>${escapeHtml(data.numbering || '')}</strong>
+                        <em>${escapeHtml(data.instructions || '')}</em>
+                    </div>
+                    <div class="mc-layout">
+                        <div class="mc-canvas-side">
+                            <div class="mc-img-container" style="width:${data.imageSizePct || 85}%">
+                                <img src="${data.image.dataUrl}" alt="diagram">
+                                <div class="mc-overlay">${zoneHtml}</div>
+                            </div>
+                        </div>
+                        <div class="mc-bank-side">
+                            <div class="matching-col-title">Options</div>
+                            <div class="mc-bank">
+                                ${(data.options || []).map(o => `<div class="mc-bank-pill">${escapeHtml(o.text)}</div>`).join('')}
+                            </div>
+                        </div>
+                    </div>`;
+                return div;
+            },
+            
+            /**
+             * Renders a Visual Gap Fill block.
+             * @param {object} data The block data.
+             * @returns {HTMLElement} The rendered block element.
+             */
+            gap_fill_visual: function(data) {
+                const div = document.createElement('div');
+                if (!data.image?.dataUrl) {
+                    div.innerHTML = `<div class="unknown-block">Image missing for this block.</div>`;
+                    return div;
+                }
+
+                div.innerHTML = `
+                    <div class="cbt-instruction-box">
+                        <strong>${escapeHtml(data.numbering || '')}</strong>
+                        <em>${escapeHtml(data.instructions || '')}</em>
+                    </div>
+                    <div class="map-container">
+                        <img src="${data.image.dataUrl}" class="map-img">
+                        ${(data.texts || []).map(t => `
+                            <div class="map-text-label" style="
+                                left:${t.x*100}%; top:${t.y*100}%; width:${t.w*100}%; height:${t.h*100}%;
+                                font-size:${t.fontSize}px; color:${escapeHtml(t.color)}; font-weight:${t.bold ? 'bold' : 'normal'};
+                                text-align:${t.align || 'left'};">
+                                ${escapeHtml(t.text)}
+                            </div>`).join('')}
+                        ${(data.gaps || []).map((g, i) => `
+                            <div class="map-gap-box" style="
+                                left:${g.x*100}%; top:${g.y*100}%; width:${g.w*100}%; height:${g.h*100}%; font-size:${g.style.fontSize}px;">
+                                <div class="map-preview-ans" title="${escapeHtml(g.answers.join(' / '))}">${i + 1}. ${escapeHtml(g.answers.join(' / '))}</div>
+                            </div>`).join('')}
+                    </div>`;
+                return div;
+            }
+        };
+
+        /**
+         * Main function to load and render the test preview.
+         */
+        window.onload = async function() {
+            const container = document.getElementById('preview-container');
+            const titleEl = document.getElementById('test-title');
+            const backLink = document.getElementById('back-link');
+            
+            // Set back link immediately
+            backLink.href = getReturnEditorUrl();
+            
+            try {
+                const urlParams = new URLSearchParams(window.location.search);
+                const testId = urlParams.get('testId');
+
+                if (!testId) {
+                    throw new Error("Test ID is missing from the URL.");
+                }
+
+                // Store safe return URL if missing
+                if (!sessionStorage.getItem('last_editor_url')) {
+                    sessionStorage.setItem('last_editor_url', 'Test_Editor_Shell.html');
+                    backLink.href = 'Test_Editor_Shell.html';
+                }
+
+                container.innerHTML = '<div class="cbt-instruction-box" style="text-align:center;">Loading Preview...</div>';
+
+                // Load via DB module
+                const test = await DB.loadTest(testId);
+
+                if (!test) {
+                    throw new Error(`Test with ID "${testId}" was not found.`);
+                }
+
+                // Render Test
+                titleEl.textContent = `Preview: ${escapeHtml(test.name)}`;
+                document.title = `Preview: ${escapeHtml(test.name)}`;
+                container.innerHTML = ''; // Clear loading/error state
+
+                const isWriting = test.skill === 'Writing';
+
+                (test.data || []).forEach(section => {
+                    const sectionEl = document.createElement('div');
+                    sectionEl.className = 'section-container';
+                    
+                    // Build section header HTML
+                    let sectionHeaderContent = `<h2>${escapeHtml(section.title)}</h2>`;
+                    
+                    // For non-Writing or if instructions exist, show as before
+                    if (!isWriting && section.instructions) {
+                        sectionHeaderContent += `<p>${escapeHtml(section.instructions)}</p>`;
+                    }
+                    
+                    sectionEl.innerHTML = `
+                        <div class="section-header">${sectionHeaderContent}</div>
+                        <div class="blocks-area"></div>
+                    `;
+                    
+                    const blocksArea = sectionEl.querySelector('.blocks-area');
+                    
+                    // For Writing: render instructionsText and promptHtml before blocks
+                    if (isWriting) {
+                        if (section.instructionsText && section.instructionsText.trim()) {
+                            const instructionsDiv = document.createElement('div');
+                            instructionsDiv.className = 'writing-instructions-text';
+                            instructionsDiv.textContent = section.instructionsText;
+                            blocksArea.appendChild(instructionsDiv);
+                        }
+                        
+                        // Render prompt HTML (with fallback to instructions if promptHtml missing)
+                        let promptContent = section.promptHtml;
+                        if (!promptContent && section.instructions && section.instructions.includes('<')) {
+                            // Fallback: if promptHtml missing but instructions looks like HTML
+                            promptContent = section.instructions;
+                        }
+                        
+                        if (promptContent && promptContent.trim()) {
+                            const promptDiv = document.createElement('div');
+                            promptDiv.className = 'writing-prompt-html';
+                            promptDiv.innerHTML = promptContent;
+                            blocksArea.appendChild(promptDiv);
+                        }
+                    }
+                    
+                    // Render question blocks (same for all skills)
+                    (section.questions || []).forEach(block => {
+                        const blockWrapper = document.createElement('div');
+                        blockWrapper.className = 'block-wrapper';
+                        
+                        const renderer = blockRenderers[block.type.toLowerCase()];
+                        if (renderer) {
+                            blockWrapper.appendChild(renderer(block.data));
+                        } else {
+                            blockWrapper.innerHTML = `
+                                <div class="unknown-block">
+                                    <strong>Unknown Block Type:</strong> ${escapeHtml(block.type)}<br>
+                                    <strong>ID:</strong> ${escapeHtml(block.id)}
+                                </div>`;
+                        }
+                        blocksArea.appendChild(blockWrapper);
+                    });
+                    container.appendChild(sectionEl);
+                });
+
+            } catch (error) {
+                console.error("Preview failed to load:", error);
+                const returnUrl = getReturnEditorUrl();
+                container.innerHTML = `
+                    <div class="error-container">
+                        <h2>Could not load preview</h2>
+                        <p style="color: #ef4444; margin-bottom: 24px;">${escapeHtml(error.message)}</p>
+                        <a href="${returnUrl}" class="back-link">Return to Editor</a>
+                    </div>`;
+            }
+        };
+    </script>
+</body>
+</html>

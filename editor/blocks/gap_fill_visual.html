@@ -1,0 +1,1180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Map Labeling Editor</title>
+    <style>
+        /* --- Page Layout Styles --- */
+        body { font-family: 'Segoe UI', sans-serif; background: #f4f6f8; margin: 0; padding: 20px; }
+        .editor-container { max-width: 1024px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #f0f0f0; padding-bottom: 15px; margin-bottom: 20px; }
+        .btn-cancel { text-decoration: none; color: #666; border: 1px solid #ddd; padding: 6px 12px; border-radius: 4px; font-size: 14px; }
+        .btn-cancel:hover { background: #f9f9f9; }
+
+        /* --- map_labeling.block.css --- */
+        /* --- Taker / Preview Style --- */
+        .map-labeling-task { 
+            font-family: Arial, sans-serif; 
+            color: #333; 
+            margin-top: 20px;
+        }
+
+        .cbt-instruction-box {
+            background-color: #f3f9ff;
+            border: 1px solid #c2e0ff;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 4px;
+            line-height: 1.5;
+        }
+
+        .map-numbering-text {
+            font-weight: bold;
+            display: block;
+            margin-bottom: 4px;
+            font-size: 15px;
+        }
+
+        .map-instruction-content {
+            font-size: 15px;
+            font-style: italic;
+            color: #444;
+        }
+
+        /* Map Stage */
+        .map-stage {
+            max-width: 980px; 
+            margin: 0; 
+            padding: 0 5px 0 0;
+        }
+
+        .map-container { 
+            position: relative; 
+            display: inline-block;
+            width: auto;
+            max-width: 100%;
+            border: 1px solid #ddd;
+            box-sizing: border-box;
+            max-height: 70vh; 
+            overflow: hidden;
+        }
+
+        .map-img { 
+            display: block; 
+            user-select: none; 
+            max-width: 100%;
+            width: auto;
+            height: auto; 
+            max-height: 70vh; 
+            object-fit: contain; 
+        }
+
+        /* Overlays */
+        .map-overlay {
+            position: absolute; 
+            top: 0; 
+            left: 0; 
+            width: 100%; 
+            height: 100%; 
+            pointer-events: none; 
+        }
+
+        .map-text-label {
+            position: absolute;
+            pointer-events: none;
+            white-space: normal; /* Allow wrapping */
+            word-wrap: break-word; /* Prevent overflow */
+            overflow: visible; 
+            box-sizing: border-box;
+            display: flex; /* Flex to align text inside box */
+            flex-direction: column;
+            justify-content: center; /* Vertical Center */
+            line-height: 1.2;
+        }
+
+        .map-gap-box { 
+            position: absolute; 
+            pointer-events: auto; 
+            box-sizing: border-box;
+        }
+
+        /* Inputs & Preview */
+        .map-input { 
+            width: 100%; 
+            height: 100%; 
+            border: 1px solid #333; 
+            background: #fff; 
+            text-align: center; 
+            font-size: 100%; /* Inherit size from parent */
+            box-sizing: border-box; 
+            font-weight: 500;
+            padding: 2px;
+            outline: none;
+        }
+        .map-input::placeholder { color: #666; }
+
+        .map-preview-ans {
+            width: 100%; 
+            height: 100%; 
+            border: 1px solid #2e7d32; 
+            background: #e8f5e9; 
+            font-weight: bold; 
+            color: #2e7d32;
+            box-sizing: border-box;
+            font-size: 100%; /* Inherit size */
+            padding: 2px;
+            
+            /* Text Wrapping & Centering */
+            white-space: normal; 
+            word-break: break-word;
+            display: flex;
+            align-items: center; 
+            justify-content: center; 
+            text-align: center;
+            line-height: 1.1;
+            overflow: hidden;
+        }
+
+        /* --- Editor Panel --- */
+        .map-editor-panel { font-family: Arial, sans-serif; font-size: 13px; }
+
+        .map-editor-header { 
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #ddd;
+            padding-bottom: 8px;
+            margin-bottom: 12px;
+        }
+
+        .map-ed-label { 
+            font-size: 11px;
+            font-weight: bold;
+            color: #666;
+            text-transform: uppercase;
+            margin-bottom: 4px;
+            display: block;
+        }
+
+        .map-ed-input, .map-ed-textarea { 
+            width: 100%;
+            border: 1px solid #ccc;
+            padding: 6px;
+            font-size: 13px;
+            box-sizing: border-box;
+            border-radius: 2px;
+        }
+        .map-ed-textarea { height: 60px; resize: vertical; }
+
+        .map-editor-mode-toggle { margin-bottom: 12px; }
+        .map-editor-mode-toggle button {
+            padding: 6px 12px;
+            border: 1px solid #ccc;
+            background: #f0f0f0;
+            cursor: pointer;
+            border-radius: 4px;
+            font-weight: bold;
+            font-size: 13px;
+        }
+        .map-editor-mode-toggle button.active {
+            background: #0072bc;
+            color: white;
+            border-color: #0072bc;
+        }
+
+        .map-canvas-container { 
+            margin: 15px 0; 
+            border: 1px solid #ccc; 
+            background: #f8f8f8;
+            position: relative; 
+            border-radius: 4px;
+            overflow: hidden;
+            max-width: 980px;
+        }
+
+        .canvas-wrapper { 
+            position: relative; 
+            display: inline-block;
+            width: auto; 
+            max-width: 100%;
+            max-height: 70vh; 
+            overflow: hidden;
+            user-select: none;
+        }
+        .canvas-wrapper img { 
+            display: block;
+            max-width: 100%;
+            width: auto;
+            height: auto;
+        }
+
+        .gap-layer, .text-layer { 
+            position: absolute; 
+            top: 0; 
+            left: 0; 
+            width: 100%; 
+            height: 100%; 
+            pointer-events: none;
+        }
+        .gap-layer { cursor: crosshair; }
+        .text-layer { cursor: pointer; }
+
+        /* Editor Items */
+        .canvas-gap-box {
+            position: absolute; 
+            border: 1px solid #111;
+            background: rgba(255, 255, 255, 0.7);
+            cursor: move; 
+            box-sizing: border-box;
+            pointer-events: all;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            color: #111;
+            text-shadow: none;
+        }
+        .canvas-gap-box.active { 
+            border: 2px solid #111;
+            box-shadow: 0 0 5px rgba(0, 0, 0, 0.3);
+        }
+        .canvas-gap-box .resizer {
+            position: absolute; 
+            right: -6px; 
+            bottom: -6px; 
+            width: 12px; 
+            height: 12px;
+            background: #111;
+            border: 1px solid #fff;
+            cursor: nwse-resize;
+            border-radius: 2px;
+            pointer-events: all;
+        }
+        .canvas-gap-box .del-gap {
+            position: absolute; 
+            top: -8px; 
+            right: -8px; 
+            background: #111;
+            color: #fff; 
+            border: none; 
+            border-radius: 50%; 
+            cursor: pointer;
+            width: 18px; 
+            height: 18px;
+            font-size: 14px;
+            line-height: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0;
+            pointer-events: all;
+            z-index: 20;
+        }
+
+        .canvas-text-label {
+            position: absolute;
+            cursor: move;
+            white-space: normal;
+            overflow: visible; /* Show controls */
+            word-wrap: break-word;
+            padding: 3px 5px;
+            pointer-events: all;
+            color: #111;
+            box-sizing: border-box;
+            border: 1px dashed transparent;
+            background: rgba(255, 255, 255, 0.5);
+            min-width: 20px;
+            min-height: 20px;
+            
+            /* Editor Centering */
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            line-height: 1.2;
+        }
+        .canvas-text-label.active {
+            border: 1px dashed #111;
+            box-shadow: 0 0 5px rgba(0, 0, 0, 0.3);
+        }
+        .canvas-text-label .resizer {
+            position: absolute; 
+            right: -6px; 
+            bottom: -6px; 
+            width: 12px; 
+            height: 12px;
+            background: #111; 
+            border: 1px solid #fff;
+            cursor: nwse-resize;
+            border-radius: 2px;
+            pointer-events: all;
+            display: none;
+        }
+        .canvas-text-label.active .resizer { display: block; }
+        .canvas-text-label .del-text {
+            position: absolute; 
+            top: -8px; 
+            right: -8px;
+            left: auto;
+            transform: none;
+            background: #111; 
+            color: #fff; 
+            border: none; 
+            border-radius: 50%; 
+            cursor: pointer;
+            width: 18px; 
+            height: 18px;
+            font-size: 14px;
+            line-height: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0;
+            pointer-events: all;
+            z-index: 20;
+        }
+
+        /* List & Controls */
+        .gap-prop-list { max-height: 250px; overflow-y: auto; margin-top: 10px; }
+        .gap-list-row {
+            display: grid;
+            grid-template-columns: 32px 1fr 60px 32px; 
+            align-items: center;
+            gap: 8px;
+            padding: 6px;
+            background: #fff;
+            border: 1px solid #eee;
+            margin-bottom: 4px;
+            border-radius: 4px;
+            font-size: 13px;
+            cursor: pointer;
+        }
+        .gap-list-row.active { background: #fffbe5; border-color: #ffeb3b; }
+
+        .gap-idx-badge {
+            width: 24px;
+            height: 24px;
+            background: #0072bc;
+            color: white;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 11px;
+        }
+
+        .gap-list-row .map-ed-input { padding: 4px; }
+        .gap-list-row .btn-del-gap {
+            color: #d32f2f;
+            border: none;
+            background: none;
+            font-size: 18px;
+            cursor: pointer;
+            padding: 0;
+        }
+
+        .gap-style-controls {
+            display: flex;
+            gap: 10px;
+            align-items: flex-start;
+            padding: 8px;
+            margin-bottom: 10px;
+            border: 1px solid #e0e0e0;
+            border-radius: 4px;
+            background: #fcfcfc;
+        }
+        .gap-style-control-item { display: flex; flex-direction: column; width: 50%; }
+        .gap-style-control-item input[type="range"] { padding: 0; height: 10px; margin-top: 5px; }
+
+        .text-prop-panel {
+            padding: 8px;
+            margin-bottom: 10px;
+            border: 1px solid #e0e0e0;
+            border-radius: 4px;
+            background: #fcfcfc;
+        }
+        .text-prop-panel .controls { display: flex; gap: 10px; margin-top: 8px; }
+        .text-prop-panel .controls > div { flex: 1; }
+        .text-prop-panel button {
+            padding: 4px 8px;
+            font-size: 12px;
+            cursor: pointer;
+            border: 1px solid #ccc;
+            background: #fff;
+            border-radius: 2px;
+        }
+
+        .map-text-align {
+            display: flex;
+            gap: 6px;
+            margin-top: 6px;
+        }
+        .map-text-align button {
+            width: 34px;
+            height: 28px;
+            border: 1px solid #ccc;
+            background: #fff;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        .map-text-align button.active {
+            border-color: #111;
+            box-shadow: 0 0 0 1px #111 inset;
+        }
+    </style>
+</head>
+<body>
+
+<div class="editor-container">
+    <div class="header">
+        <h2 style="margin:0">Edit Map Labeling Block</h2>
+        <a href="#" id="btnBack" class="btn-cancel">Cancel / Back</a>
+    </div>
+    <div id="editor-mount"></div>
+</div>
+
+<script>
+    /* map_labeling.block.js */
+
+    // Utility Functions
+    function escapeHtml(str) {
+      return (str ?? '').toString()
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    function normalize(data) {
+      const defaultGap = {
+        x: 0.05, y: 0.05, w: 0.12, h: 0.07,
+        answers: [''],
+        caseSensitive: false,
+        style: { showNumberInside: true, opacity: 0.7, fontSize: 16 }
+      };
+      const defaultText = {
+        x: 0.5, y: 0.5, w: 0.2, h: 0.05, text: 'Label...',
+        fontSize: 14, color: '#111', bold: true,
+        align: 'left'
+      };
+
+      let gaps = Array.isArray(data?.gaps) ? data.gaps.map((g, i) => ({
+        id: g.id || 'g' + Math.random().toString(36).substr(2, 5),
+        n: i + 1,
+        x: Math.max(0, Math.min(1, parseFloat(g.x) || defaultGap.x)),
+        y: Math.max(0, Math.min(1, parseFloat(g.y) || defaultGap.y)),
+        w: Math.max(0.01, Math.min(1, parseFloat(g.w) || defaultGap.w)),
+        h: Math.max(0.01, Math.min(1, parseFloat(g.h) || defaultGap.h)),
+        answers: Array.isArray(g.answers)
+          ? g.answers.filter(s => (s ?? '').toString().trim())
+          : (g.answerKey
+            ? g.answerKey.split(';').map(s => s.trim()).filter(Boolean)
+            : defaultGap.answers),
+        caseSensitive: !!g.caseSensitive,
+        style: {
+          showNumberInside: g.style?.showNumberInside ?? defaultGap.style.showNumberInside,
+          opacity: parseFloat(g.style?.opacity) || defaultGap.style.opacity,
+          fontSize: parseInt(g.style?.fontSize) || defaultGap.style.fontSize,
+        }
+      })) : [];
+
+      gaps.forEach((g, i) => g.n = i + 1);
+
+      const texts = Array.isArray(data?.texts) ? data.texts.map(t => ({
+        id: t.id || 't' + Math.random().toString(36).substr(2, 5),
+        x: Math.max(0, Math.min(1, parseFloat(t.x) || defaultText.x)),
+        y: Math.max(0, Math.min(1, parseFloat(t.y) || defaultText.y)),
+        w: Math.max(0.01, Math.min(1, parseFloat(t.w) || defaultText.w)),
+        h: Math.max(0.01, Math.min(1, parseFloat(t.h) || defaultText.h)),
+        text: t.text || defaultText.text,
+        fontSize: parseInt(t.fontSize) || defaultText.fontSize,
+        color: t.color || defaultText.color,
+        bold: t.bold ?? defaultText.bold,
+        align: (t.align || defaultText.align) === 'center'
+          ? 'center'
+          : (t.align === 'right' ? 'right' : 'left'),
+      })) : [];
+
+      return {
+        numbering: data?.numbering || 'Questions 1-6',
+        instructions: data?.instructions || 'Label the plan below.',
+        image: data?.image || { dataUrl: null },
+        gaps,
+        texts,
+        activeGapId: data?.activeGapId || null,
+        activeTextId: data?.activeTextId || null
+      };
+    }
+
+    // Image compression function
+    const imageCompressor = (file) => {
+      return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onerror = () => reject(new Error("Image load error"));
+        img.onload = () => {
+          const MAX_WIDTH = 1600;
+          let width = img.width;
+          let height = img.height;
+
+          if (width > MAX_WIDTH) {
+            height = Math.round((height * MAX_WIDTH) / width);
+            width = MAX_WIDTH;
+          }
+
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
+
+          let quality = 0.9;
+          const MAX_SIZE = 1024 * 1024; // 1MB
+
+          let dataUrl = canvas.toDataURL('image/jpeg', quality);
+
+          while (dataUrl.length > MAX_SIZE && quality > 0.1) {
+            quality -= 0.1;
+            dataUrl = canvas.toDataURL('image/jpeg', quality);
+          }
+
+          if (quality <= 0.1 && dataUrl.length > MAX_SIZE) {
+            dataUrl = canvas.toDataURL('image/webp', 0.9);
+            quality = 0.7;
+            while (dataUrl.length > MAX_SIZE && quality > 0.1) {
+              quality -= 0.1;
+              dataUrl = canvas.toDataURL('image/webp', quality);
+            }
+          }
+
+          if (dataUrl.length > MAX_SIZE) {
+            reject(new Error("Image size too large even after compression (over 1MB)"));
+          } else {
+            resolve(dataUrl);
+          }
+        };
+        img.src = URL.createObjectURL(file);
+      });
+    };
+
+    const mapLabelingBlock = {
+      renderTaker(data) { return this.renderBase(data, 'taker'); },
+      renderEditor(data) { return this.renderBase(data, 'editor'); },
+
+      renderBase(data, mode) {
+        const safe = normalize(data);
+        const div = document.createElement('div');
+        div.className = 'map-labeling-task';
+        const isTaker = mode === 'taker';
+
+        if (!safe.image?.dataUrl) {
+          div.innerHTML = `<div class="cbt-instruction-box">Map image missing. Please go to the editor panel to upload an image.</div>`;
+          return div;
+        }
+
+        div.innerHTML = `
+          <div class="cbt-instruction-box">
+            <span class="map-numbering-text">${escapeHtml(safe.numbering)}</span>
+            <span class="map-instruction-content">${escapeHtml(safe.instructions)}</span>
+          </div>
+          <div class="map-stage">
+            <div class="map-container">
+              <img src="${safe.image.dataUrl}" class="map-img">
+              <div class="map-overlay">
+                ${safe.texts.map(t => `
+                  <div class="map-text-label" style="
+                    left:${t.x * 100}%;
+                    top:${t.y * 100}%;
+                    width:${t.w * 100}%;
+                    height:${t.h * 100}%;
+                    font-size:${t.fontSize}px;
+                    color:${escapeHtml(t.color)};
+                    font-weight:${t.bold ? 'bold' : 'normal'};
+                    text-align:${t.align || 'left'};
+                  ">${escapeHtml(t.text)}</div>
+                `).join('')}
+              </div>
+              ${safe.gaps.map(g => {
+                const numberText = g.style.showNumberInside ? String(g.n) : '';
+                const answerText = g.answers.join(' / ');
+                return `
+                  <div class="map-gap-box" style="
+                    left:${g.x * 100}%;
+                    top:${g.y * 100}%;
+                    width:${g.w * 100}%;
+                    height:${g.h * 100}%;
+                    font-size:${g.style.fontSize}px;
+                  ">
+                    ${isTaker
+                      ? `<input type="text" class="map-input" placeholder="${numberText}" title="Question ${g.n}">`
+                      : `<div class="map-preview-ans" title="${escapeHtml(answerText)}">
+                          ${numberText ? `(${numberText}) ` : ''}${escapeHtml(answerText)}
+                        </div>`
+                    }
+                  </div>
+                `;
+              }).join('')}
+            </div>
+          </div>
+        `;
+        return div;
+      },
+
+      renderEditorPanel(data, ctx) {
+        // 1. Setup State
+        const safe = normalize(data);
+        let activeGapId = safe.activeGapId;
+        let activeTextId = safe.activeTextId;
+        let editorMode = 'gap';
+        let dragState = null;
+
+        const root = document.createElement('div');
+        root.className = 'map-editor-panel';
+
+        // 2. Define State Mutators
+        const deleteGap = (id) => {
+          safe.gaps = safe.gaps.filter(g => g.id !== id);
+          safe.gaps.forEach((g, i) => g.n = i + 1);
+          if (activeGapId === id) activeGapId = null;
+          render();
+        };
+
+        const deleteText = (id) => {
+          safe.texts = safe.texts.filter(t => t.id !== id);
+          if (activeTextId === id) activeTextId = null;
+          render();
+        };
+
+        // 3. Define Helper Renderers
+        const renderGapStyleControls = (activeGap) => {
+          return `
+            <div class="gap-style-controls">
+              <div class="gap-style-control-item">
+                <label class="map-ed-label">Opacity (${activeGap.style.opacity})</label>
+                <input type="range" id="p-gap-op" min="0.1" max="1" step="0.1" value="${activeGap.style.opacity}">
+              </div>
+              <div class="gap-style-control-item">
+                <label class="map-ed-label">Font Size (${activeGap.style.fontSize}px)</label>
+                <input type="range" id="p-gap-fs" min="10" max="22" step="1" value="${activeGap.style.fontSize}">
+              </div>
+            </div>
+            <label class="map-ed-label" style="margin-top:-10px; display:block">
+              <input type="checkbox" id="p-gap-n-inside" ${activeGap.style.showNumberInside ? 'checked' : ''}> Show Number Inside Box (Taker View)
+            </label>
+          `;
+        };
+
+        const renderTextProperties = (activeText) => {
+          const a = (activeText.align || 'left');
+          return `
+            <div class="text-prop-panel">
+              <div style="display:flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                <label class="map-ed-label" style="margin:0;">Text Properties</label>
+                <button class="btn-del-text-prop" data-id="${activeText.id}" data-act="del-text-prop" style="color:red; border-color:red">Delete Text</button>
+              </div>
+              <input type="text" class="map-ed-input" id="p-text-content" value="${escapeHtml(activeText.text)}">
+              <div class="controls">
+                <div>
+                  <label class="map-ed-label">Size (${activeText.fontSize}px)</label>
+                  <input type="range" id="p-text-fs" min="10" max="28" step="1" value="${activeText.fontSize}">
+                </div>
+                <div>
+                  <label class="map-ed-label">Style</label>
+                  <label style="font-size:13px; display:block; margin-top:5px;">
+                    <input type="checkbox" id="p-text-bold" ${activeText.bold ? 'checked' : ''}> Bold
+                  </label>
+                  <label class="map-ed-label" style="margin-top:10px;">Alignment</label>
+                  <div class="map-text-align">
+                    <button type="button" data-act="text-align" data-align="left" class="${a === 'left' ? 'active' : ''}">L</button>
+                    <button type="button" data-act="text-align" data-align="center" class="${a === 'center' ? 'active' : ''}">C</button>
+                    <button type="button" data-act="text-align" data-align="right" class="${a === 'right' ? 'active' : ''}">R</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          `;
+        };
+
+        const renderGapList = () => {
+          return safe.gaps.map((g) => `
+            <div class="gap-list-row ${g.id === activeGapId ? 'active' : ''}" data-id="${g.id}">
+              <div class="gap-idx-badge">${g.n}</div>
+              <input type="text" class="map-ed-input p-gap-ans"
+                value="${escapeHtml(g.answers.join('; '))}"
+                placeholder="e.g. answer 1; alt answer">
+              <label style="font-size:10px; display:flex; align-items:center; gap:3px; cursor:pointer">
+                <input type="checkbox" class="p-gap-case" ${g.caseSensitive ? 'checked' : ''}> Case
+              </label>
+              <button class="btn-del-gap" data-id="${g.id}" data-act="del-gap-list">×</button>
+            </div>
+          `).join('');
+        };
+
+        // 4. Define Drag Handlers (attached only during drag)
+        const onMove = (e) => {
+          if (!dragState) return;
+          e.preventDefault();
+
+          const dx = e.clientX - dragState.startX;
+          const dy = e.clientY - dragState.startY;
+
+          const item = dragState.itemType === 'gap'
+            ? safe.gaps.find(g => g.id === dragState.id)
+            : safe.texts.find(t => t.id === dragState.id);
+          if (!item) return;
+
+          const selector = dragState.itemType === 'gap' ? '.canvas-gap-box' : '.canvas-text-label';
+          const el = root.querySelector(`${selector}[data-id="${dragState.id}"]`);
+          if (!el) return;
+
+          const wrapper = root.querySelector('.canvas-wrapper');
+          if (!wrapper) return;
+          const imgRect = wrapper.getBoundingClientRect();
+
+          if (dragState.type === 'move') {
+            const newX = dragState.startRelX + dx / imgRect.width;
+            const newY = dragState.startRelY + dy / imgRect.height;
+
+            const maxX = 1 - item.w;
+            const maxY = 1 - item.h;
+
+            item.x = Math.max(0, Math.min(maxX, newX));
+            item.y = Math.max(0, Math.min(maxY, newY));
+          } else if (dragState.type === 'resize') {
+            const newW = dragState.startW + dx / imgRect.width;
+            const newH = dragState.startH + dy / imgRect.height;
+            item.w = Math.max(0.02, Math.min(1 - item.x, newW));
+            item.h = Math.max(0.02, Math.min(1 - item.y, newH));
+          }
+
+          el.style.left = `${item.x * 100}%`;
+          el.style.top = `${item.y * 100}%`;
+          el.style.width = `${item.w * 100}%`;
+          el.style.height = `${item.h * 100}%`;
+        };
+
+        const onUp = () => {
+          if (!dragState) return;
+          dragState = null;
+          document.body.style.userSelect = '';
+          window.removeEventListener('pointermove', onMove, true);
+          window.removeEventListener('pointerup', onUp, true);
+          render();
+        };
+
+        // 5. Define attachEvents (FIXED: real handlers for Save/Mode/Upload/Inputs)
+        const attachEvents = () => {
+          const wrapper = root.querySelector('.canvas-wrapper');
+          const textLayer = root.querySelector('#p-t-layer');
+          const gapLayer = root.querySelector('#p-g-layer');
+          const defaultW = 0.12, defaultH = 0.07;
+          const textDefaultW = 0.2, textDefaultH = 0.05;
+
+          // Numbering/Instructions (so changes persist when saving)
+          const numEl = root.querySelector('#p-map-num');
+          const instrEl = root.querySelector('#p-map-instr');
+          if (numEl) numEl.oninput = (e) => { safe.numbering = e.target.value; };
+          if (instrEl) instrEl.oninput = (e) => { safe.instructions = e.target.value; };
+
+          // Mode Toggle (FIX)
+          const toggle = root.querySelector('#p-mode-toggle');
+          if (toggle) {
+            toggle.onclick = (e) => {
+              const btn = e.target.closest('button[data-mode]');
+              if (!btn) return;
+              editorMode = btn.dataset.mode;
+              activeGapId = null;
+              activeTextId = null;
+              render();
+            };
+          }
+
+          // Save (FIX)
+          const saveBtn = root.querySelector('#p-save-map');
+          if (saveBtn) {
+            saveBtn.onclick = () => {
+              safe.activeGapId = activeGapId;
+              safe.activeTextId = activeTextId;
+              // Persist current safe state
+              ctx.updateBlock(ctx.blockId, safe);
+            };
+          }
+
+          // Upload (FIX)
+          const up = root.querySelector('#p-map-up');
+          if (up) {
+            up.onchange = async (e) => {
+              const file = e.target.files?.[0];
+              if (!file || !file.type.startsWith('image/')) return;
+              try {
+                const dataUrl = await imageCompressor(file);
+                safe.image = { dataUrl };
+                safe.gaps = [];
+                safe.texts = [];
+                activeGapId = null;
+                activeTextId = null;
+                render();
+              } catch (err) {
+                alert(err?.message || 'Image compression failed.');
+                console.error(err);
+              }
+            };
+          }
+
+          // Gap list interactions
+          root.querySelectorAll('.gap-list-row').forEach(row => {
+            const id = row.dataset.id;
+            const index = safe.gaps.findIndex(g => g.id === id);
+            if (index === -1) return;
+
+            row.onclick = (e) => {
+              if (e.target.tagName === 'INPUT' || e.target.tagName === 'BUTTON' || e.target.tagName === 'LABEL') return;
+              activeGapId = id;
+              activeTextId = null;
+              render();
+            };
+
+            const ans = row.querySelector('.p-gap-ans');
+            const cs = row.querySelector('.p-gap-case');
+            if (ans) ans.oninput = (e) => {
+              safe.gaps[index].answers = e.target.value.split(';').map(s => s.trim()).filter(Boolean);
+            };
+            if (cs) cs.onchange = (e) => {
+              safe.gaps[index].caseSensitive = e.target.checked;
+            };
+          });
+
+          // Active gap style controls
+          const activeGap = safe.gaps.find(g => g.id === activeGapId);
+          if (activeGap) {
+            const box = gapLayer?.querySelector(`.canvas-gap-box[data-id="${activeGapId}"]`);
+            const op = root.querySelector('#p-gap-op');
+            const fs = root.querySelector('#p-gap-fs');
+            const inside = root.querySelector('#p-gap-n-inside');
+
+            if (op && box) op.oninput = (e) => {
+              activeGap.style.opacity = parseFloat(e.target.value);
+              box.style.background = `rgba(255,255,255,${activeGap.style.opacity})`;
+            };
+            if (fs && box) fs.oninput = (e) => {
+              activeGap.style.fontSize = parseInt(e.target.value);
+              box.style.fontSize = `${activeGap.style.fontSize}px`;
+            };
+            if (inside) inside.onchange = (e) => {
+              activeGap.style.showNumberInside = e.target.checked;
+            };
+          }
+
+          // Active text properties
+          const activeText = safe.texts.find(t => t.id === activeTextId);
+          if (activeText) {
+            const textEl = textLayer?.querySelector(`.canvas-text-label[data-id="${activeTextId}"]`);
+            const content = root.querySelector('#p-text-content');
+            const fs = root.querySelector('#p-text-fs');
+            const bold = root.querySelector('#p-text-bold');
+
+            if (content && textEl) content.oninput = (e) => {
+              activeText.text = e.target.value;
+              // live update only, no full render
+              const textNode = textEl.querySelector('.txt') || textEl;
+              if (textNode) textNode.textContent = activeText.text;
+            };
+            if (fs && textEl) fs.oninput = (e) => {
+              activeText.fontSize = parseInt(e.target.value);
+              textEl.style.fontSize = `${activeText.fontSize}px`;
+            };
+            if (bold && textEl) bold.onchange = (e) => {
+              activeText.bold = e.target.checked;
+              textEl.style.fontWeight = activeText.bold ? 'bold' : 'normal';
+            };
+          }
+
+          // Add gap/text by clicking background
+          if (wrapper) {
+            wrapper.onmousedown = (e) => {
+              if (e.target.closest('.canvas-gap-box, .canvas-text-label, .resizer, .del-gap, .del-text')) return;
+              e.preventDefault();
+
+              const r = wrapper.getBoundingClientRect();
+              const x = (e.clientX - r.left) / r.width;
+              const y = (e.clientY - r.top) / r.height;
+
+              if (editorMode === 'gap') {
+                let newX = x - defaultW / 2;
+                let newY = y - defaultH / 2;
+                newX = Math.max(0, Math.min(1 - defaultW, newX));
+                newY = Math.max(0, Math.min(1 - defaultH, newY));
+
+                const id = 'g' + Math.random().toString(36).substr(2, 5);
+                safe.gaps.push({
+                  id, n: safe.gaps.length + 1,
+                  x: newX, y: newY, w: defaultW, h: defaultH,
+                  answers: [''], caseSensitive: false,
+                  style: { showNumberInside: true, opacity: 0.7, fontSize: 16 }
+                });
+                activeGapId = id;
+                activeTextId = null;
+                render();
+              } else if (editorMode === 'text') {
+                let newX = Math.max(0, Math.min(1 - textDefaultW, x));
+                let newY = Math.max(0, Math.min(1 - textDefaultH, y));
+
+                const id = 't' + Math.random().toString(36).substr(2, 5);
+                safe.texts.push({
+                  id, x: newX, y: newY, w: textDefaultW, h: textDefaultH,
+                  text: 'Label...', fontSize: 14, color: '#111',
+                  bold: true, align: 'left'
+                });
+                activeTextId = id;
+                activeGapId = null;
+                render();
+              }
+            };
+          }
+
+          // Start drag/resize logic (attach move/up listeners ONLY when dragging)
+          [...root.querySelectorAll('.canvas-gap-box'), ...root.querySelectorAll('.canvas-text-label')].forEach(el => {
+            el.onmousedown = (e) => {
+              if (e.target.closest('.del-gap, .del-text')) return;
+
+              const itemType = el.classList.contains('canvas-gap-box') ? 'gap' : 'text';
+              const id = el.dataset.id;
+
+              e.preventDefault();
+              e.stopPropagation();
+
+              if (itemType === 'gap') { activeGapId = id; activeTextId = null; }
+              else { activeTextId = id; activeGapId = null; }
+
+              const item = itemType === 'gap'
+                ? safe.gaps.find(g => g.id === id)
+                : safe.texts.find(t => t.id === id);
+              if (!item || !wrapper) return;
+
+              const imgRect = wrapper.getBoundingClientRect();
+              const isResizer = e.target.classList.contains('resizer');
+              const type = isResizer ? 'resize' : 'move';
+
+              dragState = {
+                id, type, itemType,
+                startX: e.clientX, startY: e.clientY,
+                startW: item.w, startH: item.h,
+                startRelX: item.x, startRelY: item.y,
+                imgWidth: imgRect.width, imgHeight: imgRect.height
+              };
+
+              document.body.style.userSelect = 'none';
+
+              // attach listeners only now (FIX)
+              window.addEventListener('pointermove', onMove, true);
+              window.addEventListener('pointerup', onUp, true);
+
+              // No full render here (prevents losing target); only mark active visuals
+              root.querySelectorAll('.canvas-gap-box.active').forEach(x => x.classList.remove('active'));
+              root.querySelectorAll('.canvas-text-label.active').forEach(x => x.classList.remove('active'));
+              el.classList.add('active');
+            };
+          });
+        };
+
+        // 6. Define Render
+        function render() {
+          // Full render
+          const activeGap = safe.gaps.find(g => g.id === activeGapId);
+          const activeText = safe.texts.find(t => t.id === activeTextId);
+
+          root.innerHTML = `
+            <div class="map-editor-header">
+              <strong>Map Labeling Editor</strong>
+              <button id="p-save-map" style="background:#0072bc; color:white; border:none; padding:6px 12px; border-radius:4px; cursor:pointer; font-weight:bold;">Save Block</button>
+            </div>
+
+            <div style="display: flex; gap: 8px; margin-bottom: 12px;">
+              <div style="flex: 1;">
+                <label class="map-ed-label">Numbering</label>
+                <input type="text" class="map-ed-input" id="p-map-num" value="${escapeHtml(safe.numbering)}">
+              </div>
+              <div style="flex: 2;">
+                <label class="map-ed-label">Instructions</label>
+                <input type="text" class="map-ed-input" id="p-map-instr" value="${escapeHtml(safe.instructions)}">
+              </div>
+            </div>
+
+            <div style="margin-bottom: 12px;">
+              <label class="map-ed-label">Upload Map Image (Max 1MB)</label>
+              <input type="file" class="map-ed-input" id="p-map-up" accept="image/jpeg,image/png,image/webp">
+            </div>
+
+            <div class="map-editor-mode-toggle" id="p-mode-toggle">
+              <button data-mode="gap" class="${editorMode === 'gap' ? 'active' : ''}">Add Gap</button>
+              <button data-mode="text" class="${editorMode === 'text' ? 'active' : ''}">Add Text</button>
+            </div>
+
+            <div id="p-canvas-container" class="map-canvas-container">
+              ${safe.image?.dataUrl ? `
+                <div class="canvas-wrapper">
+                  <img src="${safe.image.dataUrl}" class="map-img" draggable="false">
+                  <div id="p-g-layer" class="gap-layer">
+                    ${safe.gaps.map((g) => {
+                      const isActive = g.id === activeGapId;
+                      const opacity = isActive ? 0.9 : g.style.opacity;
+                      return `
+                        <div class="canvas-gap-box ${isActive ? 'active' : ''}"
+                          data-id="${g.id}"
+                          style="
+                            left:${g.x * 100}%;
+                            top:${g.y * 100}%;
+                            width:${g.w * 100}%;
+                            height:${g.h * 100}%;
+                            background: rgba(255,255,255,${opacity});
+                            font-size:${g.style.fontSize}px;
+                          "
+                        >
+                          <span class="gap-num">${g.n}</span>
+                          <button class="del-gap" data-id="${g.id}" data-act="del-gap">×</button>
+                          <div class="resizer" data-id="${g.id}"></div>
+                        </div>
+                      `;
+                    }).join('')}
+                  </div>
+                  <div id="p-t-layer" class="text-layer">
+                    ${safe.texts.map(t => {
+                      const isActive = t.id === activeTextId;
+                      return `
+                        <div class="canvas-text-label ${isActive ? 'active' : ''}"
+                          data-id="${t.id}"
+                          style="
+                            left:${t.x * 100}%;
+                            top:${t.y * 100}%;
+                            width:${t.w * 100}%;
+                            height:${t.h * 100}%;
+                            font-size:${t.fontSize}px;
+                            color:${escapeHtml(t.color)};
+                            font-weight:${t.bold ? 'bold' : 'normal'};
+                            text-align:${t.align || 'left'};
+                          "
+                        >
+                          <span class="txt">${escapeHtml(t.text)}</span>
+                          <button class="del-text" data-id="${t.id}" data-act="del-text">×</button>
+                          <div class="resizer" data-id="${t.id}"></div>
+                        </div>
+                      `;
+                    }).join('')}
+                  </div>
+                </div>
+              ` : '<div style="padding: 20px; text-align: center;">Upload an image to start labeling.</div>'}
+            </div>
+
+            ${activeGap ? renderGapStyleControls(activeGap) : ''}
+            ${activeText ? renderTextProperties(activeText) : ''}
+
+            <label class="map-ed-label" style="margin-top: 15px;">Gaps & Answers (separate alternatives with ;)</label>
+            <div id="p-gap-list" class="gap-prop-list">
+              ${renderGapList()}
+            </div>
+          `;
+
+          attachEvents();
+        }
+
+        // 7. Global delegation listeners (delete, align buttons)
+        if (!root.__mapLabelingDelegated) {
+          root.__mapLabelingDelegated = true;
+          root.addEventListener('click', (e) => {
+            const btn = e.target.closest('[data-act]');
+            if (!btn) return;
+
+            const act = btn.dataset.act;
+            const id = btn.dataset.id || btn.closest('[data-id]')?.dataset.id;
+
+            if (act === 'text-align') {
+              e.preventDefault();
+              e.stopPropagation();
+              if (!activeTextId) return;
+              const t = safe.texts.find(x => x.id === activeTextId);
+              if (!t) return;
+              const align = btn.dataset.align;
+              t.align = (align === 'center' ? 'center' : (align === 'right' ? 'right' : 'left'));
+              render();
+              return;
+            }
+
+            if (act && id) {
+              e.preventDefault();
+              e.stopPropagation();
+              if (act.startsWith('del-gap')) deleteGap(id);
+              if (act.startsWith('del-text')) deleteText(id);
+            }
+          }, true);
+        }
+
+        // 8. Initial Render
+        render();
+        return root;
+      }
+    };
+
+    // --- Initialization Logic ---
+    const SESS_DATA = 'sys_editing_data';
+    const SESS_STATUS = 'sys_editing_status';
+
+    /* Resolve return URL with priority:
+       1) sessionStorage 'sys_return_url'
+       2) URL param 'returnUrl' (decode + save to sessionStorage)
+       3) document.referrer if it contains 'Test_Editor_' and 'testId='
+       4) fallback 'Test_Editor_Shell.html'
+    */
+    function resolveReturnUrl() {
+        const KEY = 'sys_return_url';
+        const cached = sessionStorage.getItem(KEY);
+        if (cached) return cached;
+
+        try {
+            const params = new URLSearchParams(window.location.search);
+            const p = params.get('returnUrl');
+            if (p) {
+                let url;
+                try { url = decodeURIComponent(p); } catch (e) { url = p; }
+                sessionStorage.setItem(KEY, url);
+                return url;
+            }
+        } catch (e) {
+            // ignore
+        }
+
+        const ref = document.referrer || '';
+        if (ref.includes('Test_Editor_') && ref.includes('testId=')) {
+            sessionStorage.setItem(KEY, ref);
+            return ref;
+        }
+
+        return 'Test_Editor_Shell.html';
+    }
+
+    const raw = sessionStorage.getItem(SESS_DATA);
+    const data = raw ? JSON.parse(raw) : {
+        numbering: "Questions 1-6",
+        instructions: "Label the plan below.",
+        image: { dataUrl: null },
+        gaps: [],
+        texts: []
+    };
+
+    const ctx = {
+        blockId: 'temp', // This is just a placeholder
+        updateBlock: (id, newData) => {
+            sessionStorage.setItem(SESS_DATA, JSON.stringify(newData));
+            sessionStorage.setItem(SESS_STATUS, 'saved');
+            window.location.href = resolveReturnUrl();
+        }
+    };
+
+    // wire back button to resolved return URL
+    document.getElementById('btnBack').href = resolveReturnUrl();
+
+    document.getElementById('editor-mount').appendChild(mapLabelingBlock.renderEditorPanel(data, ctx));
+</script>
+</body>
+</html>

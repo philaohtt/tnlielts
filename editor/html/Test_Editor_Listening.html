@@ -1,0 +1,1025 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Listening Editor | IELTS Mock Test Admin</title>
+<style>
+:root {
+--primary: #006ce1;
+--primary-hover: #0056b3;
+--bg: #f4f7fa;
+--surface: #ffffff;
+--text-main: #1a202c;
+--text-muted: #64748b;
+--border: #e2e8f0;
+--radius: 12px;
+--shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+--font: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body { height: 100%; } /* ensure unbroken height chain */
+
+    body {
+        font-family: var(--font);
+        background-color: var(--bg);
+        color: var(--text-main);
+        height: 100vh;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+    }
+
+    /* --- Header --- */
+    .top-header {
+        height: 52px;
+        background: var(--surface);
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 16px;
+        z-index: 100;
+    }
+
+    .header-left { display: flex; align-items: center; gap: 12px; }
+    .logo-box {
+		background: none;
+		width: auto;
+		height: auto;
+		padding: 0;
+		color: #d0021b;
+		font-weight: 800;
+		font-size: 16px;
+		cursor: pointer;
+		border-radius: 0;
+	}
+    .header-title { font-weight: 700; font-size: 18px; }
+    .page-indicator { color: var(--text-muted); font-weight: 400; margin-left: 8px; border-left: 1px solid var(--border); padding-left: 12px; }
+
+    .header-right { display: flex; align-items: center; gap: 16px; }
+
+    .main-container {
+		display: flex;
+		flex: 1;
+		overflow: hidden;
+		min-height: 0; /* allow children to shrink and use inner scrolling */
+	}
+
+    .builder-view { 
+		display: flex; 
+		flex-direction: column; 
+		height: 100%; 
+		width: 100%;
+		min-height: 0; /* allow inner scroll containers to size correctly */
+	}
+
+    .builder-header {
+        background: var(--surface);
+        padding: 6px 12px;
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+    .builder-header-info { display: flex; align-items: center; gap: 8px; }
+    .editable-name { font-size: 16px; font-weight: 700; border: 1px solid transparent; padding: 3px 6px; border-radius: 4px; background: transparent; }
+    
+    .badge { font-size: 9px; font-weight: 700; padding: 1px 6px; border-radius: 4px; text-transform: uppercase; line-height: 1; }
+    .badge-listening { background: #dcfce7; color: #166534; }
+
+    .builder-actions { display: flex; gap: 12px; }
+
+    .builder-content {
+		display: grid;
+		grid-template-columns: 240px 1fr;
+		flex: 1;
+		overflow: hidden;
+		justify-content: start;
+		height: 100%; /* fill available height */
+		min-height: 0;
+	}
+
+    .section-timeline {
+        background: #fff;
+        border-right: 1px solid var(--border);
+        padding: 20px 12px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        overflow-y: auto; /* left sidebar scroll area */
+        min-height: 0;
+    }
+    .timeline-item {
+        padding: 8px 10px;
+        border-radius: 6px;
+        border: 1px solid var(--border);
+        cursor: pointer;
+        transition: 0.2s;
+        text-align: left;
+    }
+    .timeline-item.active { border-color: var(--primary); background: #eff6ff; }
+    .timeline-label { font-weight: 800; font-size: 13px; margin-bottom: 4px; text-align: center; }
+    .timeline-meta { font-size: 11px; color: var(--text-muted); text-align: center; }
+
+    .global-audio-panel {
+        background: #f8fafc;
+        border: 1px dashed #cbd5e1;
+        border-radius: 8px;
+        padding: 12px;
+        margin-bottom: 16px;
+        font-size: 12px;
+    }
+
+    .workspace {
+        background: #f8fafc;
+        overflow: hidden; /* parent should not scroll */
+        flex: 1;
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
+        position: relative;
+    }
+
+    .section-editor {
+        flex: 1;
+        padding: 20px;
+        overflow-y: auto; /* main scroll area */
+        height: 100%; /* ensure it fills available height inside builder-content */
+        min-height: 0;
+        max-width: 1200px; /* increased for widescreen */
+        margin: 0; /* align left, no auto centering */
+        padding-left: 24px; /* comfortable left gutter */
+        padding-right: 24px; /* comfortable right gutter */
+        width: 100%;
+    }
+    .editor-card {
+        background: #fff;
+        border-radius: var(--radius);
+        padding: 16px;
+        border: 1px solid var(--border);
+        margin-bottom: 14px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+    .field-group { margin-bottom: 12px; }
+    .field-label { display: block; font-size: 13px; font-weight: 600; color: var(--text-muted); margin-bottom: 8px; }
+    .input-text { width: 100%; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--border); font-size: 13px; }
+    .textarea { width: 100%; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--border); font-size: 13px; min-height: 80px; resize: vertical; }
+
+    .audio-upload-surface {
+        border: 1px solid var(--border);
+        background: #f8fafc;
+        padding: 12px;
+        border-radius: 8px;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .audio-preview {
+        border: 1px solid var(--border);
+        background: #fff;
+        border-radius: 6px;
+        padding: 8px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .question-blocks-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; position: relative; }
+    .no-questions { border: 1px solid #f1f5f9; background: #fcfcfc; border-radius: 8px; padding: 40px; text-align: center; color: var(--text-muted); font-size: 14px; }
+
+    .block-list { display: flex; flex-direction: column; gap: 8px; }
+    .block-item {
+        background: #fff; border: 1px solid var(--border); border-radius: 8px;
+        padding: 10px 12px;
+        display: flex; justify-content: space-between; align-items: center;
+        transition: 0.2s; box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+    }
+    .block-item:hover { border-color: #cbd5e1; }
+    .block-info { display: flex; flex-direction: column; gap: 2px; }
+    .block-type { font-weight: 700; font-size: 14px; color: var(--text-main); }
+    .block-meta { font-size: 12px; color: var(--text-muted); }
+    .block-actions { display: flex; align-items: center; gap: 4px; }
+    
+    .add-menu {
+        position: absolute; right: 0; top: 100%; width: 200px;
+        background: #fff; border: 1px solid var(--border); border-radius: 8px;
+        box-shadow: var(--shadow); z-index: 50; display: none; flex-direction: column; padding: 4px;
+    }
+    .add-menu.show { display: flex; }
+    .add-menu-item {
+        padding: 10px 12px; font-size: 13px; font-weight: 500; color: var(--text-main);
+        border-radius: 4px; cursor: pointer; display: flex; align-items: center; justify-content: space-between;
+    }
+    .add-menu-item:hover { background: #f1f5f9; }
+
+    .btn {
+        padding: 10px 20px;
+        border-radius: 8px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: 0.2s;
+        border: 1px solid transparent;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+    }
+    .btn-sm { padding: 6px 12px; font-size: 13px; }
+    .btn-primary { background: var(--primary); color: #fff; }
+    .btn-primary:hover { background: var(--primary-hover); }
+    /* Red primary for publish action */
+    .btn-primary-red { background: #d02331; color: #fff; border-color: transparent; }
+    .btn-primary-red:hover { background: #a91a28; }
+    .status-pill {
+        font-size: 11px;
+        font-weight: 700;
+        padding: 4px 8px;
+        border-radius: 999px;
+        text-transform: uppercase;
+        display: inline-block;
+        margin-left: 8px;
+    }
+    .status-draft { background: #f3f4f6; color: #374151; }
+    .status-published { background: #dcfce7; color: #166534; }
+    
+    .btn-outline { background: #fff; border: 1px solid var(--border); color: #475569; }
+    .btn-outline:hover { background: #f8fafc; border-color: #cbd5e1; }
+    
+    .btn-icon {
+        background: transparent; border: 1px solid transparent; color: var(--text-muted);
+        width: 28px; height: 28px; border-radius: 6px; cursor: pointer; font-size: 16px;
+        display: flex; align-items: center; justify-content: center;
+        transition: background-color 0.2s, color 0.2s;
+    }
+    .btn-icon:hover:not(:disabled) { background-color: #f1f5f9; color: var(--text-main); }
+    .btn-icon:disabled { opacity: 0.4; cursor: not-allowed; }
+    .btn-icon.btn-icon-delete:hover:not(:disabled) { color: #ef4444; }
+
+    .toast-container {
+        position: fixed; bottom: 24px; right: 24px;
+        display: flex; flex-direction: column; gap: 8px; z-index: 2000;
+    }
+    .toast {
+        background: #1e293b; color: #fff; padding: 12px 20px;
+        border-radius: 8px; font-size: 14px; box-shadow: var(--shadow);
+        animation: slideIn 0.3s ease-out;
+    }
+    @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+    .hidden { display: none !important; }
+    .loading-overlay {
+        position: fixed; inset: 0; background: rgba(255,255,255,0.8); z-index: 500;
+        display: flex; align-items: center; justify-content: center; font-weight: 600; color: var(--primary);
+    }
+
+    /* Top section two-column layout */
+	.section-top-grid {
+		display: grid;
+		grid-template-columns: 1.4fr 1fr;
+		gap: 16px;
+		align-items: start;
+	}
+
+	/* Responsive: single column under 1100px */
+	@media (max-width: 1100px) {
+		.section-top-grid { grid-template-columns: 1fr; }
+		/* existing responsive tweaks... */
+	}
+</style>
+</head>
+<body>
+    <header class="top-header">
+    <div class="header-left">
+        <div class="logo-box" onclick="goDashboard()" title="Back to Dashboard">IELTS</div>
+        <div class="header-title">Listening Editor <span class="page-indicator" id="headerTestName">...</span></div>
+    </div>
+    <div class="header-right">
+        <button class="btn btn-outline btn-sm" onclick="goDashboard()">Back to Dashboard</button>
+    </div>
+</header>
+
+<main class="main-container">
+    <section class="workspace" id="workspace">
+        <div id="loadingOverlay" class="loading-overlay">Loading Test Data...</div>
+        <div class="builder-view" id="builderView">
+            <div class="builder-header">
+                <div class="builder-header-info">
+                    <input type="text" class="editable-name" id="builderTestName" value="Loading..." readonly>
+                    <span class="badge badge-listening">Listening</span>
+                    <span id="statusPill" class="status-pill status-draft hidden">Draft</span>
+                </div>
+                <div class="builder-actions">
+                    <button class="btn btn-primary btn-sm" id="previewButton" onclick="previewTest()" disabled>Preview</button>
+                    <button class="btn btn-primary-red btn-sm hidden" id="publishButton" onclick="togglePublish()">Publish</button>
+                </div>
+            </div>
+
+            <div class="builder-content">
+                <div class="section-timeline" id="sectionTimeline">
+                    <div id="testLevelAudio" class="global-audio-panel hidden">
+                        <div style="font-weight: 700; margin-bottom: 6px;">Test Audio</div>
+                        <div id="testAudioUploadArea">
+                            <div id="testAudioStatus" style="font-size:13px; color:var(--text-muted); margin-bottom:6px;">Status: No audio attached</div>
+                            <div class="audio-upload-surface">
+                                <div style="display:flex; gap:8px; align-items:center;">
+                                    <button id="btnTestAudioUpload" class="btn btn-sm btn-outline">Upload audio</button>
+                                    <div style="font-size:11px; color:var(--text-muted)">MP3 or WAV</div>
+                                </div>
+                            </div>
+                            <input id="testAudioFile" type="file" accept="audio/*" class="hidden">
+                        </div>
+                        <div id="testAudioPlayerContainer" class="hidden" style="margin-top:8px;">
+                            <div class="audio-preview">
+                                <div style="font-size:12px; color:var(--text-muted);" id="testAudioName"></div>
+                                <audio id="testAudioPlayer" controls style="flex:1;"></audio>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="section-editor">
+					<div class="section-top-grid">
+						<!-- left column: Section Title + Instructions -->
+						<div>
+							<div class="editor-card">
+								<div class="field-group">
+									<label class="field-label">Section Title</label>
+									<input type="text" class="input-text" id="sectionTitle" placeholder="e.g. Section 1 - Personal Information">
+								</div>
+								<div class="field-group">
+									<label class="field-label">Instructions</label>
+									<textarea class="textarea" id="sectionInstructions" placeholder="Write instructions for candidates..."></textarea>
+								</div>
+							</div>
+						</div>
+
+						<!-- right column: Audio Asset card -->
+						<div>
+							<div class="editor-card" id="sectionAudioCard">
+								<h3 style="font-size: 14px; margin-bottom: 12px;">Audio Asset</h3>
+								<div id="audioLogicMsg" class="hidden" style="color: var(--text-muted); font-size: 13px; margin-bottom: 10px;">
+									Audio is managed at the test level for this test.
+								</div>
+								<div id="sectionAudioUploadArea">
+									<div id="sectionAudioStatus" style="font-size:13px; color:var(--text-muted); margin-bottom:6px;">Status: No audio attached</div>
+									<div class="audio-upload-surface">
+										<div style="display:flex; gap:8px; align-items:center;">
+											<button id="btnSectionAudioUpload" class="btn btn-sm btn-outline">Upload audio</button>
+											<div style="font-size:11px; color:var(--text-muted)">MP3 or WAV</div>
+										</div>
+									</div>
+									<input id="sectionAudioFile" type="file" accept="audio/*" class="hidden">
+								</div>
+								<div id="sectionAudioPlayerContainer" class="hidden" style="margin-top:8px;">
+									<div class="audio-preview">
+										<div style="font-size:12px; color:var(--text-muted);" id="sectionAudioName"></div>
+										<audio id="sectionAudioPlayer" controls style="flex:1;"></audio>
+									</div>
+								</div>
+							</div>
+						</div>
+					</div>
+
+                    <div class="question-blocks-header">
+                        <h3 style="font-size: 16px; font-weight: 700;">Question Blocks</h3>
+                        <div style="position:relative;">
+                            <button class="btn btn-outline btn-sm" id="btnAddBlockMenu" onclick="toggleAddMenu()">+ Add Question Block</button>
+                            <div class="add-menu" id="addBlockMenu">
+	<div class="add-menu-item" onclick="addBlock('mcq_set')">MCQ Set <span>+</span></div>
+	<div class="add-menu-item" onclick="addBlock('gap_fill')">Gap Fill <span>+</span></div>
+	<div class="add-menu-item" onclick="addBlock('gap_fill_visual')">Gap Fill (Visual)<span>+</span></div>
+	<div class="add-menu-item" onclick="addBlock('matching')">Matching <span>+</span></div>
+	<div class="add-menu-item" onclick="addBlock('matching_visual')">Matching (Visual)<span>+</span></div>
+</div>
+                        </div>
+                    </div>
+
+                    <div id="blocksContainer">
+                        <div class="no-questions">
+                            No question blocks yet. Start by adding a block type.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+</main>
+
+<div class="toast-container" id="toastContainer"></div>
+
+<script type="module">
+    import { DB } from "../../db/db.tests.js";
+
+// ============================================
+// STATE
+// ============================================
+
+    const CURRENT_SKILL = 'Listening';
+    let currentTest = null;
+
+    let activeSectionIndex = 0;
+    let workspaceScrollTop = 0;
+
+    const UI_STATE_KEY = (testId) => `listening_editor_ui_state::${testId}`;
+
+// ============================================
+// UI
+// ============================================
+
+    function saveUiState(testId) {
+        try {
+            const workspace = document.getElementById('workspace');
+            const state = {
+                activeSectionIndex,
+                workspaceScrollTop: workspace ? workspace.scrollTop : 0
+            };
+            sessionStorage.setItem(UI_STATE_KEY(testId || (currentTest && currentTest.id) || 'unknown'), JSON.stringify(state));
+        } catch (e) { console.warn('saveUiState err', e); }
+    }
+
+    function restoreUiState(testId) {
+        try {
+            const raw = sessionStorage.getItem(UI_STATE_KEY(testId));
+            if (!raw) return;
+            const s = JSON.parse(raw);
+            if (typeof s.activeSectionIndex === 'number') activeSectionIndex = s.activeSectionIndex;
+            workspaceScrollTop = s.workspaceScrollTop || 0;
+        } catch (e) { console.warn('restoreUiState err', e); }
+    }
+
+    function applyUiStateToDom() {
+        // removed class toggles for timeline/banner/dense and button visuals
+        // keep dataset.short application and scroll restore
+        document.querySelectorAll('#sectionTimeline .timeline-item').forEach((el, i) => {
+            el.dataset.short = `S${i+1}`;
+        });
+
+        // restore scroll after a small delay to ensure content rendered
+        setTimeout(() => {
+            const ws = document.getElementById('workspace');
+            if (ws) ws.scrollTop = workspaceScrollTop;
+            // ensure add menu closed
+            document.getElementById('addBlockMenu')?.classList.remove('show');
+        }, 50);
+    }
+
+// ============================================
+// EVENTS
+// ============================================
+
+    window.onload = async function() {
+        try {
+            const params = new URLSearchParams(window.location.search);
+            const testId = params.get('testId');
+
+            if (!testId) {
+                alert("No Test ID specified. Returning to dashboard.");
+                window.location.href = 'Test_Editor_Shell.html';
+                return;
+            }
+
+            restoreUiState(testId);
+            const editResult = await DB.commitReturnFromEditIfAny();
+            await loadTest(testId, { preserveActiveSection: true });
+
+            if (editResult.committed && editResult.testId === testId) {
+                showToast("Block saved successfully");
+            }
+            applyUiStateToDom();
+        } catch (e) {
+            console.error("Init error", e);
+            showToast("Error connecting to database");
+        } finally {
+            document.getElementById('loadingOverlay').classList.add('hidden');
+        }
+    };
+
+    window.addEventListener('beforeunload', () => {
+        saveUiState(currentTest?.id);
+    });
+
+    window.goDashboard = function() { window.location.href = 'Test_Editor_Shell.html'; }
+
+    window.showToast = function(message) {
+        const container = document.getElementById('toastContainer');
+        const toast = document.createElement('div');
+        toast.className = 'toast';
+        toast.innerText = message;
+        container.appendChild(toast);
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            setTimeout(() => toast.remove(), 500);
+        }, 3000);
+    }
+
+    window.toggleAddMenu = function() {
+        const menu = document.getElementById('addBlockMenu');
+        menu.classList.toggle('show');
+    }
+
+    document.addEventListener('click', function(e) {
+        const menu = document.getElementById('addBlockMenu');
+        const btn = document.getElementById('btnAddBlockMenu');
+        if (menu && btn && !menu.contains(e.target) && !btn.contains(e.target)) {
+            menu.classList.remove('show');
+        }
+    });
+
+// ============================================
+// DB
+// ============================================
+
+    window.loadTest = async function(id, opts = {}) {
+        try {
+            currentTest = await DB.loadTest(id);
+            if (!opts.preserveActiveSection || typeof activeSectionIndex !== 'number') {
+                activeSectionIndex = 0;
+            }
+            if (!Array.isArray(currentTest.data) || currentTest.data.length === 0) {
+                activeSectionIndex = 0;
+            } else if (activeSectionIndex < 0 || activeSectionIndex >= currentTest.data.length) {
+                activeSectionIndex = 0;
+            }
+
+            document.getElementById('builderTestName').value = currentTest.name;
+            document.getElementById('headerTestName').innerText = currentTest.name;
+            document.getElementById('previewButton').disabled = false;
+            // ensure status present and render publish UI
+            currentTest.status = currentTest.status || 'draft';
+            renderPublishButton();
+
+            renderTimeline();
+            renderSectionEditor();
+            document.getElementById('addBlockMenu')?.classList.remove('show');
+        } catch(e) {
+            console.error(e);
+            showToast("Failed to load test");
+        }
+    }
+
+    function getSections() {
+        if (!currentTest) return [];
+        return Array.isArray(currentTest.data) && currentTest.data.length
+            ? currentTest.data
+            : (Array.isArray(currentTest.sections) ? currentTest.sections : []);
+    }
+
+    // improved unit counting across block types
+	function countUnitsForMeta(data) {
+		if (!data) return 0;
+		if (Array.isArray(data.questions)) return data.questions.length;       // mcq_set
+		if (Array.isArray(data.gaps)) return data.gaps.length;                 // gap_fill / gap_fill_visual
+		if (Array.isArray(data.items)) return data.items.length;               // matching (items)
+		if (Array.isArray(data.pairs)) return data.pairs.length;               // matching_visual or pairs
+		// fallback checks for alternate keys
+		if (Array.isArray(data.pair)) return data.pair.length;
+		return 0;
+	}
+
+	// helper: human-readable label for block types and unit count
+	function formatBlockLabel(block) {
+		const typeLabels = {
+			'mcq_set': 'MCQ Set',
+			'gap_fill': 'Gap Fill',
+			'matching': 'Matching',
+			'matching_visual': 'Matching (Visual)',
+			'gap_fill_visual': 'Gap Fill (Visual)'
+		};
+		const typeLabel = typeLabels[block.type] || (block.type || 'Block');
+		const count = countUnitsForMeta(block.data);
+		return `${typeLabel}${count > 0 ? ` (${count})` : ''}`;
+	}
+
+	// timeline: show section title (fallback) and both blocks + questions
+	function renderTimeline() {
+		if (!currentTest) return;
+		const timeline = document.getElementById('sectionTimeline');
+		const audioPanel = document.getElementById('testLevelAudio');
+        const sections = getSections();
+
+        // show/hide test-level audio panel based on audioMode
+        audioPanel.classList.toggle('hidden', currentTest.audioMode !== 'whole');
+
+        // populate test audio UI
+        const testAudioPlayerContainer = document.getElementById('testAudioPlayerContainer');
+        const testAudioName = document.getElementById('testAudioName');
+        const testAudioPlayer = document.getElementById('testAudioPlayer');
+        const testAudioStatus = document.getElementById('testAudioStatus');
+
+        if (currentTest.audioMode === 'whole' && currentTest.audio && currentTest.audio.url) {
+            testAudioPlayerContainer.classList.remove('hidden');
+            document.getElementById('testAudioUploadArea')?.querySelectorAll('.audio-upload-surface').forEach(n => n.style.display = 'none');
+            testAudioName.innerText = currentTest.audio.name || '';
+            testAudioPlayer.src = currentTest.audio.url;
+            if (testAudioStatus) testAudioStatus.innerText = `Attached: ${currentTest.audio.name || ''}`;
+        } else if (currentTest.audioMode === 'whole') {
+            testAudioPlayerContainer.classList.add('hidden');
+            document.getElementById('testAudioUploadArea')?.querySelectorAll('.audio-upload-surface').forEach(n => n.style.display = 'flex');
+            testAudioPlayer.src = '';
+            testAudioName.innerText = '';
+            if (testAudioStatus) testAudioStatus.innerText = 'Status: No audio attached';
+        }
+
+        // render timeline items
+		timeline.querySelectorAll('.timeline-item').forEach(n => n.remove());
+
+		const itemsHtml = sections.map((sec, idx) => {
+			const title = (sec.title && sec.title.trim()) ? sec.title.trim() : `Section ${idx + 1}`;
+			const blocksCount = Array.isArray(sec.questions) ? sec.questions.length : 0;
+			let questionsCount = 0;
+			(Array.isArray(sec.questions) ? sec.questions : []).forEach(b => {
+				questionsCount += countUnitsForMeta(b.data);
+			});
+			const meta = `${blocksCount} ${blocksCount === 1 ? 'block' : 'blocks'} · ${questionsCount} ${questionsCount === 1 ? 'question' : 'questions'}`;
+			return `
+				<div class="timeline-item ${activeSectionIndex === idx ? 'active' : ''}" onclick="switchSection(${idx})">
+					<div class="timeline-label">${title}</div>
+					<div class="timeline-meta">${meta}</div>
+				</div>
+			`;
+		}).join('');
+		timeline.insertAdjacentHTML('beforeend', itemsHtml);
+	}
+
+    // blocks list: subtitle = per-block question count (remove untitled)
+	function renderBlocksList(section) {
+		if (!section) return;
+		const container = document.getElementById('blocksContainer');
+		const questions = section.questions || [];
+
+		if (questions.length === 0) {
+			container.innerHTML = "<div class='no-questions'>No question blocks yet. Start by adding a block type.</div>";
+			return;
+		}
+
+		const html = `
+			<div class="block-list">
+				${questions.map((block, idx) => {
+					const qcount = countUnitsForMeta(block.data);
+					const qLabel = `${qcount} ${qcount === 1 ? 'question' : 'questions'}`;
+					const typeClass = `type-${block.type || 'unknown'}`;
+					return `
+						<div class="block-item ${typeClass}" data-block-id="${block.id}">
+							<div class="block-info">
+								<div class="block-type">${formatBlockLabel(block)}</div>
+								<div class="block-meta">${qLabel}</div>
+							</div>
+							<div class="block-actions">
+								<button class="btn-icon" onclick="editBlock('${block.id}')" title="Edit">✎</button>
+								<button class="btn-icon" onclick="duplicateBlock('${block.id}')" title="Duplicate block">⧉</button>
+								<button class="btn-icon" onclick="moveBlockUp('${block.id}')" ${idx === 0 ? 'disabled' : ''} title="Move Up">↑</button>
+								<button class="btn-icon" onclick="moveBlockDown('${block.id}')" ${idx === questions.length - 1 ? 'disabled' : ''} title="Move Down">↓</button>
+								<button class="btn-icon btn-icon-delete" onclick="deleteBlock('${block.id}')" title="Delete">✕</button>
+							</div>
+						</div>
+					`;
+				}).join('')}
+			</div>
+		`;
+		container.innerHTML = html;
+	}
+
+    window.switchSection = function(index) {
+        activeSectionIndex = index;
+        renderTimeline();
+        renderSectionEditor();
+        saveUiState(currentTest?.id);
+    }
+
+    function renderSectionEditor() {
+        if (!currentTest) return;
+        const sections = getSections();
+        const section = sections[activeSectionIndex];
+        if (!section) {
+            document.getElementById('blocksContainer').innerHTML = "<div class='no-questions'>No section found.</div>";
+            document.getElementById('sectionAudioCard').classList.add('hidden');
+            return;
+        }
+        document.getElementById('sectionAudioCard').classList.remove('hidden');
+        document.getElementById('sectionTitle').value = section.title || '';
+        document.getElementById('sectionInstructions').value = section.instructions || '';
+
+        const audioMsg = document.getElementById('audioLogicMsg');
+        const sectionAudioStatus = document.getElementById('sectionAudioStatus');
+        const sectionAudioPlayerContainer = document.getElementById('sectionAudioPlayerContainer');
+        const sectionAudioPlayer = document.getElementById('sectionAudioPlayer');
+        const sectionAudioName = document.getElementById('sectionAudioName');
+        const isWholeTestAudio = currentTest.audioMode === 'whole';
+
+        document.getElementById('sectionAudioUploadArea')?.querySelectorAll('.audio-upload-surface').forEach(el => {
+            el.style.opacity = isWholeTestAudio ? '0.4' : '1';
+            el.style.pointerEvents = isWholeTestAudio ? 'none' : 'auto';
+        });
+
+        if (isWholeTestAudio) {
+            if (sectionAudioStatus) sectionAudioStatus.innerText = 'Status: Disabled (test-level audio in use)';
+        } else {
+            if (section.audio && section.audio.url) {
+                sectionAudioPlayerContainer.classList.remove('hidden');
+                sectionAudioPlayer.src = section.audio.url;
+                sectionAudioName.innerText = section.audio.name || '';
+                if (sectionAudioStatus) sectionAudioStatus.innerText = `Attached: ${section.audio.name || ''}`;
+            } else {
+                sectionAudioPlayerContainer.classList.add('hidden');
+                sectionAudioPlayer.src = '';
+                sectionAudioName.innerText = '';
+                if (sectionAudioStatus) sectionAudioStatus.innerText = 'Status: No audio attached';
+            }
+        }
+        renderBlocksList(section);
+    }
+
+    document.addEventListener('click', (e) => {
+        if (e.target && e.target.id === 'btnTestAudioUpload') document.getElementById('testAudioFile').click();
+        if (e.target && e.target.id === 'btnSectionAudioUpload') document.getElementById('sectionAudioFile').click();
+    });
+
+    document.getElementById('testAudioFile')?.addEventListener('change', async function(e) {
+        const f = this.files?.[0];
+        if (!f) return;
+        showToast('Uploading audio...');
+        try {
+            const res = await DB.uploadTestAudio(currentTest.id, f);
+            currentTest.audio = { url: res.url, name: res.name };
+            renderTimeline();
+            showToast('Audio uploaded');
+            saveUiState(currentTest.id);
+        } catch (err) { showToast('Upload failed'); }
+        finally { this.value = ''; }
+    });
+
+    document.getElementById('sectionAudioFile')?.addEventListener('change', async function(e) {
+        const f = this.files?.[0];
+        if (!f || !currentTest) return;
+        const section = currentTest.data[activeSectionIndex];
+        if (!section) return;
+        showToast('Uploading audio...');
+        try {
+            const res = await DB.uploadSectionAudio(currentTest.id, section.id, f);
+            section.audio = { url: res.url, name: res.name };
+            renderSectionEditor();
+            showToast('Audio uploaded');
+            saveUiState(currentTest.id);
+        } catch (err) { showToast('Upload failed'); }
+        finally { this.value = ''; }
+    });
+
+    window.editBlock = function(blockId) {
+        const section = currentTest.data[activeSectionIndex];
+        const block = section.questions.find(b => b.id === blockId);
+        saveUiState(currentTest?.id);
+        sessionStorage.setItem('sys_editing_data', JSON.stringify(block.data));
+        sessionStorage.setItem('sys_editing_target', JSON.stringify({ 
+            testId: currentTest.id, sectionId: section.id, blockId: block.id, blockType: block.type
+        }));
+        sessionStorage.setItem('sys_editing_status', 'editing');
+        sessionStorage.setItem('sys_return_url', window.location.href);
+        document.getElementById('addBlockMenu')?.classList.remove('show');
+        window.location.href = `../blocks/${block.type}.html`;
+    }
+
+    window.previewTest = async function() {
+        if (!currentTest) return;
+        window.open(`preview.html?testId=${currentTest.id}`, '_blank');
+    }
+
+    document.getElementById('sectionTitle')?.addEventListener('blur', async function() {
+        if (!currentTest) return;
+        const section = currentTest.data[activeSectionIndex];
+        if (section && section.title !== this.value) {
+            try {
+                await DB.updateSection(currentTest.id, section.id, { title: this.value });
+                section.title = this.value;
+                renderTimeline();
+                saveUiState(currentTest.id);
+            } catch (err) { console.error(err); }
+        }
+    });
+
+    document.getElementById('sectionInstructions')?.addEventListener('blur', async function() {
+        if (!currentTest) return;
+        const section = currentTest.data[activeSectionIndex];
+        if (section && section.instructions !== this.value) {
+            try {
+                await DB.updateSection(currentTest.id, section.id, { instructions: this.value });
+                section.instructions = this.value;
+                saveUiState(currentTest.id);
+            } catch (err) { console.error(err); }
+        }
+    });
+
+	// <-- Add this function near other window.* helpers (e.g. before window.switchSection) -->
+	window.addBlock = async function(blockType) {
+		if (!currentTest) return;
+		const section = currentTest.data[activeSectionIndex];
+		if (!section) return;
+
+		try {
+			saveUiState(currentTest.id);
+
+			// default data shapes per block type
+			let defaultData = { questions: [] };
+			if (blockType === 'mcq_set') defaultData = { questions: [] };
+			else if (blockType === 'gap_fill' || blockType === 'gap_fill_visual') defaultData = { gaps: [] };
+			else if (blockType === 'matching') defaultData = { items: [] };
+			else if (blockType === 'matching_visual') defaultData = { pairs: [] };
+
+			// Prefer DB.addBlock if available
+			if (DB && typeof DB.addBlock === 'function') {
+				await DB.addBlock(currentTest.id, section.id, blockType, defaultData);
+				// reload test preserving active section and UI
+				await loadTest(currentTest.id, { preserveActiveSection: true });
+				applyUiStateToDom();
+			} else {
+				// Fallback: mutate model and persist via saveTest if available
+				const newBlock = {
+					id: 'block_' + Date.now(),
+					type: blockType,
+					title: '',
+					data: defaultData
+				};
+				section.questions.push(newBlock);
+				if (DB && typeof DB.saveTest === 'function') {
+					await DB.saveTest(currentTest);
+					await loadTest(currentTest.id, { preserveActiveSection: true });
+					applyUiStateToDom();
+				} else {
+					// local render fallback
+					renderBlocksList(section);
+				}
+			}
+
+			showToast('Block added');
+			saveUiState(currentTest.id);
+		} catch (err) {
+			console.error('addBlock err', err);
+			showToast('Failed to add block');
+		}
+	};
+
+	window.deleteBlock = async function(blockId) {
+		if (!currentTest) return;
+		if (!confirm('Delete this block?')) return;
+		const section = currentTest.data[activeSectionIndex];
+		if (!section) return;
+		const idx = section.questions.findIndex(b => b.id === blockId);
+		if (idx < 0) return;
+
+		try {
+			saveUiState(currentTest.id);
+
+			if (DB && typeof DB.deleteBlock === 'function') {
+				await DB.deleteBlock(currentTest.id, section.id, blockId);
+				await loadTest(currentTest.id, { preserveActiveSection: true });
+				applyUiStateToDom();
+			} else {
+				section.questions.splice(idx, 1);
+				if (DB && typeof DB.saveTest === 'function') {
+					await DB.saveTest(currentTest);
+					await loadTest(currentTest.id, { preserveActiveSection: true });
+					applyUiStateToDom();
+				} else {
+					renderBlocksList(section);
+				}
+			}
+
+			showToast('Block deleted');
+			saveUiState(currentTest.id);
+		} catch (err) {
+			console.error('deleteBlock err', err);
+			showToast('Failed to delete block');
+		}
+	}
+
+	window.duplicateBlock = async function(blockId) {
+		if (!currentTest) return;
+		const section = currentTest.data[activeSectionIndex];
+		const originalBlock = section.questions.find(b => b.id === blockId);
+		if(!originalBlock) return;
+
+		try {
+			const newData = JSON.parse(JSON.stringify(originalBlock.data));
+			if (DB && typeof DB.addBlock === 'function') {
+				await DB.addBlock(currentTest.id, section.id, originalBlock.type, newData);
+				await loadTest(currentTest.id, { preserveActiveSection: true });
+				applyUiStateToDom();
+				showToast('Block duplicated');
+			}
+		} catch(e) {
+			console.error(e);
+			showToast('Duplicate failed');
+		}
+	}
+
+	window.moveBlockUp = async function(blockId) {
+		if (!currentTest) return;
+		const section = currentTest.data[activeSectionIndex];
+		if (!section) return;
+		
+		const idx = section.questions.findIndex(b => b.id === blockId);
+		if (idx <= 0) return;
+
+		try {
+			saveUiState(currentTest.id);
+			
+			// Try DB.moveBlock first, then DB.reorderBlock as fallback
+			if (DB && typeof DB.moveBlock === 'function') {
+				await DB.moveBlock(currentTest.id, section.id, blockId, 'up');
+			} else if (DB && typeof DB.reorderBlock === 'function') {
+				await DB.reorderBlock(currentTest.id, section.id, blockId, 'up');
+			} else {
+				throw new Error('No DB reorder method available');
+			}
+			
+			await loadTest(currentTest.id, { preserveActiveSection: true });
+			applyUiStateToDom();
+			showToast('Block moved');
+			saveUiState(currentTest.id);
+		} catch (err) {
+			console.error('moveBlockUp err', err);
+			showToast('Move failed');
+		}
+	}
+
+	window.moveBlockDown = async function(blockId) {
+		if (!currentTest) return;
+		const section = currentTest.data[activeSectionIndex];
+		if (!section) return;
+		
+		const idx = section.questions.findIndex(b => b.id === blockId);
+		if (idx < 0 || idx >= section.questions.length - 1) return;
+
+		try {
+			saveUiState(currentTest.id);
+			
+			// Try DB.moveBlock first, then DB.reorderBlock as fallback
+			if (DB && typeof DB.moveBlock === 'function') {
+				await DB.moveBlock(currentTest.id, section.id, blockId, 'down');
+			} else if (DB && typeof DB.reorderBlock === 'function') {
+				await DB.reorderBlock(currentTest.id, section.id, blockId, 'down');
+			} else {
+				throw new Error('No DB reorder method available');
+			}
+			
+			await loadTest(currentTest.id, { preserveActiveSection: true });
+			applyUiStateToDom();
+			showToast('Block moved');
+			saveUiState(currentTest.id);
+		} catch (err) {
+			console.error('moveBlockDown err', err);
+			showToast('Move failed');
+		}
+	}
+
+function renderPublishButton() {
+    const publishButton = document.getElementById('publishButton');
+    const statusPill = document.getElementById('statusPill');
+
+    if (!currentTest || !publishButton || !statusPill) return;
+
+    if (currentTest.status === 'published') {
+        publishButton.innerText = 'Unpublish';
+        publishButton.classList.remove('hidden');
+        statusPill.classList.remove('hidden');
+        statusPill.innerText = 'Published';
+        statusPill.classList.add('status-published');
+        statusPill.classList.remove('status-draft');
+    } else {
+        publishButton.innerText = 'Publish';
+        publishButton.classList.remove('hidden');
+        statusPill.classList.remove('hidden');
+        statusPill.innerText = 'Draft';
+        statusPill.classList.add('status-draft');
+        statusPill.classList.remove('status-published');
+    }
+}
+
+window.togglePublish = async function() {
+    if (!currentTest) return;
+    const testId = currentTest.id;
+    const isPublished = currentTest.status === 'published';
+
+    try {
+        if (isPublished) {
+            await DB.unpublishTest(testId);
+            currentTest.status = 'draft';
+            showToast('Test unpublished');
+        } else {
+            await DB.publishTest(testId);
+            currentTest.status = 'published';
+            showToast('Test published');
+        }
+        renderPublishButton();
+        saveUiState(currentTest.id);
+    } catch (err) {
+        console.error('togglePublish error', err);
+        showToast('Failed to update publish status');
+    }
+};
+
+</script>
+</body>
+</html>

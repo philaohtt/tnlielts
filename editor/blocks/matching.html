@@ -1,0 +1,791 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Matching Block Editor</title>
+    <style>
+        /* --- Page Layout Styles (Consistent with mcq_set.html) --- */
+        body { font-family: 'Segoe UI', sans-serif; background: #f4f6f8; margin: 0; padding: 20px; }
+        .editor-container { max-width: 800px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #f0f0f0; padding-bottom: 15px; margin-bottom: 20px; }
+        .btn-cancel { text-decoration: none; color: #666; border: 1px solid #ddd; padding: 6px 12px; border-radius: 4px; font-size: 14px; }
+        .btn-cancel:hover { background: #f9f9f9; }
+        h2 { margin: 0; color: #333; }
+
+        /* --- matching.block.css --- */
+
+        /* --- Taker & Preview Styles --- */
+        .matching-task {
+            font-family: Arial, sans-serif;
+            color: #333;
+            margin-top: 20px;
+        }
+
+        .cbt-instruction-box {
+            background-color: #f3f9ff;
+            border: 1px solid #c2e0ff;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 4px;
+            line-height: 1.5;
+        }
+
+        .matching-numbering-text {
+            font-weight: bold;
+            display: block;
+            margin-bottom: 4px;
+            font-size: 15px;
+        }
+
+        .matching-instruction-content {
+            font-size: 15px;
+            font-style: italic;
+            color: #444;
+        }
+
+        .matching-prompt {
+            margin-bottom: 15px;
+            white-space: pre-wrap;
+            font-weight: bold;
+            color: #222;
+            padding: 0 5px;
+        }
+
+        .matching-container {
+            display: grid;
+            grid-template-columns: minmax(400px, 1fr) 320px; 
+            gap: 30px;
+            align-items: start;
+        }
+
+        .matching-col-title {
+            font-weight: bold;
+            font-size: 13px;
+            color: #64748b;
+            text-transform: uppercase;
+            margin-bottom: 15px;
+            letter-spacing: 0.05em;
+        }
+
+        .matching-col-right {
+            background: #f8fafc;
+            border: 1px solid #cbd5e0;
+            border-radius: 8px;
+            padding: 20px;
+            position: sticky;
+            top: 20px;
+        }
+
+        .matching-item-row {
+            display: flex;
+            align-items: center;
+            padding: 12px 0;
+            border-bottom: 1px solid #edf2f7;
+            gap: 15px;
+        }
+
+        .matching-item-text {
+            flex: 1;
+            font-size: 15px;
+            line-height: 1.5;
+        }
+
+        .matching-drop-zone {
+            width: 220px;
+            min-height: 44px;
+            border: 1px dashed #cbd5e0;
+            border-radius: 6px;
+            background: #fff;
+            display: flex;
+            align-items: center;
+            padding: 4px;
+            transition: all 0.2s;
+        }
+
+        .matching-drop-zone.over {
+            background: #ebf8ff;
+            border-color: #0072bc;
+            border-style: solid;
+        }
+
+        .matching-pill {
+            display: inline-flex;
+            align-items: center;
+            background: #fff;
+            border: 1px solid #94a3b8;
+            border-radius: 4px;
+            padding: 6px 10px;
+            font-size: 13px;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+            cursor: grab;
+            width: auto;
+            max-width: 100%;
+        }
+
+        .matching-pill-letter {
+            font-weight: bold;
+            color: #0072bc;
+            background: #ebf8ff;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 11px;
+            margin-right: 8px;
+            flex-shrink: 0;
+        }
+
+        .matching-pill-text {
+            flex: 1;
+            white-space: normal;
+            line-height: 1.3;
+        }
+
+        .matching-pill-clear {
+            margin-left: 8px;
+            color: #e53e3e;
+            cursor: pointer;
+            font-weight: bold;
+            padding: 0 4px;
+        }
+
+        .matching-pill.used { opacity: 0.3; cursor: default; }
+
+        .matching-pill.correct-ans {
+            background-color: #e6ffe6 !important; 
+            border-color: #2e7d32 !important; 
+            color: #1b5e20 !important;
+            cursor: default !important;
+        }
+
+        .matching-pill.correct-ans .matching-pill-letter {
+            background-color: #c8e6c9; 
+            color: #1b5e20; 
+        }
+
+        .matching-pill.correct-ans .check-mark {
+            margin-left: 8px;
+            font-weight: bold;
+            color: #2e7d32;
+        }
+
+        .matching-drop-zone:has(.correct-ans) {
+            border: 1px solid #2e7d32;
+            background: #f0fff0;
+        }
+
+        .matching-drop-zone .matching-pill {
+            width: 100%;
+            border-style: solid;
+            box-shadow: none;
+        }
+
+        .matching-bank-area { display: flex; flex-wrap: wrap; gap: 10px; }
+        .matching-bank-area.stack-vertical { flex-direction: column; }
+        .matching-bank-area.full-width-pills .matching-pill { width: 100%; }
+
+        .matching-bank-hint {
+            margin-top: 15px;
+            font-size: 11px;
+            color: #718096;
+            text-align: center;
+            font-style: italic;
+        }
+
+        .mh-slot.matching-drop-zone {
+            display: inline-flex;
+            vertical-align: middle;
+            min-width: 160px;
+            padding: 2px;
+            margin: 0 4px;
+            border-style: dashed;
+        }
+
+        /* --- Block Settings Editor Styles --- */
+        .matching-ed-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            color: #1e293b;
+        }
+
+        .matching-ed-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .matching-ed-header-title {
+            font-weight: 700;
+            font-size: 16px;
+        }
+
+        .matching-ed-section {
+            background: #fff;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 14px;
+        }
+
+        .matching-ed-section.hg-bar {
+            background: #f8fafc;
+        }
+
+        .matching-ed-section-split {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        .matching-ed-col {
+            background: #fff;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .matching-ed-section-title {
+            font-weight: 700;
+            font-size: 12px;
+            text-transform: uppercase;
+            color: #64748b;
+            margin-bottom: 12px;
+            display: block;
+        }
+
+        .matching-ed-field {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .matching-ed-row-grid {
+            display: grid;
+            grid-template-columns: 1fr 2fr;
+            gap: 12px;
+        }
+
+        .matching-ed-label {
+            font-size: 11px;
+            font-weight: 700;
+            color: #64748b;
+            text-transform: uppercase;
+        }
+
+        .matching-ed-input, .matching-ed-textarea {
+            width: 100%;
+            padding: 8px 10px;
+            border: 1px solid #cbd5e0;
+            border-radius: 6px;
+            font-size: 13px;
+            box-sizing: border-box;
+        }
+
+        .matching-ed-input:focus, .matching-ed-textarea:focus {
+            outline: none;
+            border-color: #0072bc;
+            box-shadow: 0 0 0 1px rgba(0, 114, 188, 0.1);
+        }
+
+        .matching-ed-textarea {
+            height: 60px;
+            resize: vertical;
+        }
+
+        .matching-ed-checkbox-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        .matching-ed-checkbox-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .matching-ed-hg-toggle {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        /* Buttons */
+        .matching-ed-btn {
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-weight: 600;
+            font-size: 13px;
+            cursor: pointer;
+            border: 1px solid transparent;
+            transition: all 0.2s;
+        }
+
+        .matching-ed-btn.primary {
+            background: #0072bc;
+            color: white;
+        }
+
+        .matching-ed-btn.primary:hover {
+            background: #005a96;
+        }
+
+        .matching-ed-btn-outline {
+            width: 100%;
+            padding: 8px;
+            background: white;
+            border: 1px dashed #cbd5e0;
+            border-radius: 6px;
+            color: #64748b;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 600;
+            margin-top: 8px;
+        }
+
+        .matching-ed-btn-outline:hover {
+            background: #f8fafc;
+            border-color: #94a3b8;
+        }
+
+        .matching-ed-btn-small {
+            padding: 4px 10px;
+            font-size: 11px;
+            font-weight: 700;
+            border-radius: 4px;
+            cursor: pointer;
+            border: 1px solid #cbd5e0;
+            background: #fff;
+            color: #1e293b;
+        }
+
+        .matching-ed-btn-small.active {
+            background: #0072bc;
+            color: white;
+            border-color: #0072bc;
+        }
+
+        /* Lists */
+        .matching-ed-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+
+        .matching-ed-list-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: #f1f5f9;
+            padding: 6px;
+            border-radius: 6px;
+        }
+
+        .matching-ed-idx-label {
+            font-weight: 700;
+            font-size: 12px;
+            color: #64748b;
+            width: 20px;
+            text-align: center;
+        }
+
+        .matching-ed-del-btn {
+            background: none;
+            border: none;
+            color: #94a3b8;
+            font-size: 18px;
+            cursor: pointer;
+            padding: 0 4px;
+        }
+
+        .matching-ed-del-btn:hover {
+            color: #ef4444;
+        }
+
+        .matching-ed-select {
+            flex: 1;
+            padding: 6px;
+            border: 1px solid #cbd5e0;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+
+        /* Answer Key Section */
+        .matching-ed-section.ans-key {
+            background: #f0f7ff;
+            border-color: #cfe2ff;
+        }
+
+        .matching-ed-header-compact {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="editor-container">
+    <div class="header">
+        <h2>Edit Matching Block</h2>
+        <a href="#" id="btnBack" class="btn-cancel">Cancel / Back</a>
+    </div>
+    <div id="editor-mount"></div>
+</div>
+
+<script>
+    /* matching.block.js Logic - Converted to global object */
+
+    // Helper: Normalize data and provide defaults for backward compatibility
+    function normalize(data) {
+        return {
+            numbering: data?.numbering || '',
+            instructions: data?.instructions || '',
+            prompt: data?.prompt || '',
+            // FORCE false for standalone editor to avoid DOM scanning errors
+            inlineSlots: false, 
+            allowReuse: data?.allowReuse ?? false,
+            config: {
+                showLetters: data?.config?.showLetters ?? true,
+                shuffleRight: data?.config?.shuffleRight ?? false,
+                optionsInColumn: data?.config?.optionsInColumn ?? false,
+                optionsHugContent: data?.config?.optionsHugContent ?? true,
+                itemColumnTitle: data?.config?.itemColumnTitle || 'Items',
+                optionColumnTitle: data?.config?.optionColumnTitle || 'Options'
+            },
+            items: Array.isArray(data?.items) ? data.items : [],
+            options: Array.isArray(data?.options) ? data.options : [],
+            answerKey: data?.answerKey || {} 
+        };
+    }
+
+    function escapeHtml(str) {
+        return (str ?? '').toString()
+            .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    }
+
+    const matchingBlock = {
+        // Stubbed for standalone editor
+        getInlineSlotsForBlock: (bid) => {
+            return [];
+        },
+
+        renderEditor: (data, bid) => {
+            return matchingBlock.renderBase(data, bid, null, { mode: 'preview' });
+        },
+
+        renderTaker: (data, bid, state) => {
+            return matchingBlock.renderBase(data, bid, state, { mode: 'taker' });
+        },
+
+        renderBase: (data, bid, state, opts = { mode: 'taker' }) => {
+            const safe = normalize(data);
+            const isPreview = opts.mode === 'preview';
+            const isTaker = opts.mode === 'taker';
+            
+            if (isTaker && !state.session[bid]) state.session[bid] = {};
+            const currentSelection = isTaker ? state.session[bid] : {};
+
+            const div = document.createElement('div');
+            div.className = 'matching-task';
+
+            const instructionHtml = `
+                <div class="cbt-instruction-box">
+                    ${safe.numbering ? `<span class="matching-numbering-text">${escapeHtml(safe.numbering)}</span>` : ''}
+                    ${safe.instructions ? `<span class="matching-instruction-content">${escapeHtml(safe.instructions)}</span>` : ''}
+                </div>
+                ${safe.prompt ? `<div class="matching-prompt">${escapeHtml(safe.prompt)}</div>` : ''}
+            `;
+
+            const getPillHtml = (label, isCorrect) => {
+                const idx = label.charCodeAt(0) - 65;
+                const optText = safe.options[idx]?.text || '';
+                return `
+                    <div class="matching-pill ${isCorrect ? 'correct-ans' : ''}">
+                        ${safe.config.showLetters ? `<span class="matching-pill-letter">${label}</span>` : ''}
+                        <span class="matching-pill-text">${escapeHtml(optText)}</span>
+                        ${isCorrect ? '<span class="check-mark">✓</span>' : (isTaker ? '<span class="matching-pill-clear">×</span>' : '')}
+                    </div>
+                `;
+            };
+
+            let bankLayoutClass = '';
+            if (safe.config.optionsInColumn) bankLayoutClass += ' stack-vertical';
+            if (!safe.config.optionsHugContent) bankLayoutClass += ' full-width-pills';
+
+            div.innerHTML = `
+                ${instructionHtml}
+                <div class="matching-container">
+                    <div class="matching-col-left" style="${safe.inlineSlots ? 'display:none' : ''}">
+                        <div class="matching-col-title">${escapeHtml(safe.config.itemColumnTitle)}</div>
+                        ${safe.items.map((item, idx) => {
+                            let content = '';
+                            if (isPreview) {
+                                if (item.key) content = getPillHtml(item.key, true);
+                            } else {
+                                const val = currentSelection[idx];
+                                if (val) content = getPillHtml(val, false);
+                            }
+                            return `
+                                <div class="matching-item-row">
+                                    <div class="matching-item-text">${escapeHtml(item.text)}</div>
+                                    <div class="matching-drop-zone" data-bid="${bid}" data-sid="${idx}">
+                                        ${content}
+                                    </div>
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>
+                    <div class="matching-col-right">
+                        <div class="matching-col-title">${escapeHtml(safe.config.optionColumnTitle)}</div>
+                        <div class="matching-bank-area ${bankLayoutClass}">
+                            ${safe.options.map((opt, i) => {
+                                const label = String.fromCharCode(65 + i);
+                                const isUsed = !safe.allowReuse && isTaker && Object.values(currentSelection).includes(label);
+                                return `
+                                    <div class="matching-pill ${isUsed ? 'used' : ''}" 
+                                         draggable="${!isUsed && isTaker}" 
+                                         data-bid="${bid}" data-label="${label}">
+                                        ${safe.config.showLetters ? `<span class="matching-pill-letter">${label}</span>` : ''}
+                                        <span class="matching-pill-text">${escapeHtml(opt.text)}</span>
+                                    </div>
+                                `;
+                            }).join('')}
+                        </div>
+                        ${isTaker ? `<div class="matching-bank-hint">Drag items back here to remove</div>` : ''}
+                    </div>
+                </div>
+            `;
+            // Inline slots logic removed/skipped here for simplicity as it's disabled in normalization
+            return div;
+        },
+
+        renderEditorPanel: (data, ctx) => {
+            const bid = ctx.blockId;
+            const safe = normalize(data);
+            const container = document.createElement('div');
+            container.className = 'matching-ed-panel';
+
+            const render = () => {
+                // Inline slots forced to false
+                safe.inlineSlots = false; 
+
+                container.innerHTML = `
+                    <div class="matching-ed-header">
+                        <span class="matching-ed-header-title">Settings</span>
+                        <button id="matching-save-btn" class="matching-ed-btn primary">Save Changes</button>
+                    </div>
+
+                    <div class="matching-ed-section">
+                        <div class="matching-ed-row-grid">
+                            <div class="matching-ed-field">
+                                <label class="matching-ed-label">Numbering</label>
+                                <input type="text" id="m-num" class="matching-ed-input" value="${escapeHtml(safe.numbering)}" placeholder="e.g. Q1-5">
+                            </div>
+                            <div class="matching-ed-field">
+                                <label class="matching-ed-label">Instructions</label>
+                                <input type="text" id="m-instr" class="matching-ed-input" value="${escapeHtml(safe.instructions)}" placeholder="e.g. Match the items...">
+                            </div>
+                        </div>
+                        <div class="matching-ed-field" style="margin-top: 12px;">
+                            <label class="matching-ed-label">Prompt (Optional)</label>
+                            <textarea id="m-prompt" class="matching-ed-textarea" placeholder="Context or prompt...">${escapeHtml(safe.prompt)}</textarea>
+                        </div>
+                    </div>
+
+                    <!-- New: Column titles -->
+                    <div class="matching-ed-section">
+                        <div class="matching-ed-section-title">Column Titles</div>
+                        <div class="matching-ed-row-grid">
+                            <div class="matching-ed-field">
+                                <label class="matching-ed-label">Items column title</label>
+                                <input type="text" id="col-item-title" class="matching-ed-input" value="${escapeHtml(safe.config.itemColumnTitle || 'Items')}" placeholder="Items">
+                            </div>
+                            <div class="matching-ed-field">
+                                <label class="matching-ed-label">Options bank title</label>
+                                <input type="text" id="col-option-title" class="matching-ed-input" value="${escapeHtml(safe.config.optionColumnTitle || 'Options')}" placeholder="Options">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- HG Bar hidden in standalone editor -->
+                    <div class="matching-ed-section hg-bar" style="display:none;">
+                        <div class="matching-ed-hg-toggle">
+                            <label class="matching-ed-checkbox-row">
+                                <input type="checkbox" id="chk-inline-${bid}" disabled>
+                                <span>Use Inline Passage Slots (Disabled in this view)</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="matching-ed-section">
+                        <div class="matching-ed-checkbox-group">
+                            <label class="matching-ed-checkbox-row"><input type="checkbox" id="c-reuse" ${safe.allowReuse?'checked':''}> Reuse Options</label>
+                            <label class="matching-ed-checkbox-row"><input type="checkbox" id="c-letters" ${safe.config.showLetters?'checked':''}> Show Letters</label>
+                            <label class="matching-ed-checkbox-row"><input type="checkbox" id="c-column" ${safe.config.optionsInColumn?'checked':''}> Vertical Bank</label>
+                            <label class="matching-ed-checkbox-row"><input type="checkbox" id="c-hug" ${safe.config.optionsHugContent?'checked':''}> Hug Content</label>
+                        </div>
+                    </div>
+
+                    <div class="matching-ed-section-split">
+                        <div class="matching-ed-col">
+                            <div class="matching-ed-section-title">Items & Keys</div>
+                            <div id="items-list" class="matching-ed-list"></div>
+                            <button id="btn-add-item" class="matching-ed-btn-outline">+ Add Item</button>
+                        </div>
+                        <div class="matching-ed-col">
+                            <div class="matching-ed-section-title">Options Bank</div>
+                            <div id="options-list" class="matching-ed-list"></div>
+                            <button id="btn-add-opt" class="matching-ed-btn-outline">+ Add Option</button>
+                        </div>
+                    </div>
+
+                    <div id="answer-key-section" class="matching-ed-section ans-key" style="display:none">
+                        <!-- Hidden because inlineSlots is forced false -->
+                    </div>
+                `;
+
+                const itemsList = container.querySelector('#items-list');
+                const optionsList = container.querySelector('#options-list');
+
+                safe.items.forEach((item, idx) => {
+                    const row = document.createElement('div');
+                    row.className = 'matching-ed-list-row';
+                    row.innerHTML = `
+                        <span class="matching-ed-idx-label">${idx+1}</span>
+                        <input type="text" class="matching-ed-input i-txt" value="${escapeHtml(item.text)}" placeholder="Text">
+                        <input type="text" class="matching-ed-input i-key" style="width:40px; text-align:center;" value="${escapeHtml(item.key)}" placeholder="A">
+                        <button class="matching-ed-del-btn">×</button>
+                    `;
+                    row.querySelector('.matching-ed-del-btn').onclick = () => { safe.items.splice(idx,1); render(); };
+                    row.querySelector('.i-txt').oninput = (e) => safe.items[idx].text = e.target.value;
+                    row.querySelector('.i-key').oninput = (e) => safe.items[idx].key = e.target.value;
+                    itemsList.appendChild(row);
+                });
+
+                safe.options.forEach((opt, idx) => {
+                    const label = String.fromCharCode(65+idx);
+                    const row = document.createElement('div');
+                    row.className = 'matching-ed-list-row';
+                    row.innerHTML = `
+                        <span class="matching-ed-idx-label">${label}</span>
+                        <input type="text" class="matching-ed-input o-txt" value="${escapeHtml(opt.text)}" placeholder="Option text">
+                        <button class="matching-ed-del-btn">×</button>
+                    `;
+                    row.querySelector('.matching-ed-del-btn').onclick = () => { safe.options.splice(idx,1); render(); };
+                    row.querySelector('.o-txt').oninput = (e) => safe.options[idx].text = e.target.value;
+                    optionsList.appendChild(row);
+                });
+
+                container.querySelector('#btn-add-item').onclick = () => { safe.items.push({text:'', key:''}); render(); };
+                container.querySelector('#btn-add-opt').onclick = () => { safe.options.push({text:''}); render(); };
+                container.querySelector('#m-num').oninput = (e) => safe.numbering = e.target.value;
+                container.querySelector('#m-instr').oninput = (e) => safe.instructions = e.target.value;
+                container.querySelector('#m-prompt').oninput = (e) => safe.prompt = e.target.value;
+                
+                // container.querySelector(`#chk-inline-${bid}`) logic removed as it is disabled
+                
+                // bind inputs
+                container.querySelector('#col-item-title').oninput = (e) => {
+                    safe.config.itemColumnTitle = e.target.value;
+                };
+                container.querySelector('#col-option-title').oninput = (e) => {
+                    safe.config.optionColumnTitle = e.target.value;
+                };
+
+                container.querySelector('#c-reuse').onchange = (e) => safe.allowReuse = e.target.checked;
+                container.querySelector('#c-letters').onchange = (e) => safe.config.showLetters = e.target.checked;
+                container.querySelector('#c-column').onchange = (e) => safe.config.optionsInColumn = e.target.checked;
+                container.querySelector('#c-hug').onchange = (e) => safe.config.optionsHugContent = e.target.checked;
+                container.querySelector('#matching-save-btn').onclick = () => ctx.updateBlock(bid, safe);
+            };
+
+            render();
+            return container;
+        }
+    };
+
+    // --- Initialization Logic ---
+    const SESS_DATA = 'sys_editing_data';
+    const SESS_STATUS = 'sys_editing_status';
+
+    /* Resolve return URL with priority:
+       1) sessionStorage 'sys_return_url'
+       2) URL param 'returnUrl' (decode + save to sessionStorage)
+       3) document.referrer if it contains 'Test_Editor_' and 'testId='
+       4) fallback 'Test_Editor_Shell.html'
+    */
+    function resolveReturnUrl() {
+        const KEY = 'sys_return_url';
+        const sess = sessionStorage.getItem(KEY);
+        if (sess) return sess;
+
+        try {
+            const params = new URLSearchParams(window.location.search);
+            const p = params.get('returnUrl');
+            if (p) {
+                let url;
+                try { url = decodeURIComponent(p); } catch (e) { url = p; }
+                sessionStorage.setItem(KEY, url);
+                return url;
+            }
+        } catch (e) {
+            // ignore parsing errors
+        }
+
+        const ref = document.referrer || '';
+        if (ref.includes('Test_Editor_') && ref.includes('testId=')) {
+            sessionStorage.setItem(KEY, ref);
+            return ref;
+        }
+
+        return 'Test_Editor_Shell.html';
+    }
+
+    const raw = sessionStorage.getItem(SESS_DATA);
+    const defaultData = {
+        numbering: "Questions 1-5",
+        instructions: "Match the items with the options.",
+        prompt: "",
+        inlineSlots: false,
+        allowReuse: false,
+        config: {
+            showLetters: true,
+            shuffleRight: false,
+            optionsInColumn: false,
+            optionsHugContent: true,
+            itemColumnTitle: "Items",
+            optionColumnTitle: "Options"
+        },
+        items: [{text:"Item 1", key:"A"}],
+        options: [{text:"Option A"}],
+        answerKey: {}
+    };
+
+    const data = raw ? JSON.parse(raw) : defaultData;
+
+    const ctx = {
+        blockId: 'temp-matching-block',
+        updateBlock: (id, newData) => {
+            sessionStorage.setItem(SESS_DATA, JSON.stringify(newData));
+            sessionStorage.setItem(SESS_STATUS, 'saved');
+            window.location.href = resolveReturnUrl();
+        }
+    };
+
+    // Set dynamic back link
+    document.getElementById('btnBack').href = resolveReturnUrl();
+
+    document.getElementById('editor-mount').appendChild(matchingBlock.renderEditorPanel(data, ctx));
+
+</script>
+</body>
+</html>

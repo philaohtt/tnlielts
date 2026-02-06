@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TFNG / YNNG Editor</title>
+    <style>
+        /* --- Shared / Preview Styles --- */
+        body { font-family: 'Segoe UI', sans-serif; background: #f4f6f8; margin: 0; padding: 20px; color: #333; }
+        
+        /* Taker/Preview Container */
+        .tfng-task { font-family: Arial, sans-serif; color: #333; margin-top: 20px; }
+        
+        .cbt-instruction-box { 
+            background-color: #f3f9ff; 
+            border: 1px solid #c2e0ff; 
+            padding: 15px; 
+            margin-bottom: 20px; 
+            border-radius: 4px; 
+            line-height: 1.5; 
+        }
+        .tfng-numbering-text { font-weight: bold; display: block; margin-bottom: 4px; font-size: 15px; }
+        .tfng-instruction-content { font-size: 15px; font-style: italic; color: #444; }
+
+        /* Question Rows (CBT Style) */
+        .tfng-list { display: flex; flex-direction: column; gap: 0; border-top: 1px solid #e0e0e0; }
+        
+        .tfng-row { 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: flex-start; /* Align to top for long text */
+            padding: 15px 10px; 
+            border-bottom: 1px solid #e0e0e0;
+            gap: 20px;
+        }
+        
+        .tfng-statement { 
+            flex: 1; 
+            font-size: 16px; 
+            line-height: 1.5; 
+            display: flex; 
+            gap: 10px;
+        }
+
+        .tfng-q-num {
+            font-weight: bold;
+            min-width: 25px;
+        }
+
+        .tfng-options-group {
+            display: flex;
+            gap: 15px;
+            flex-shrink: 0;
+            padding-top: 2px; /* Visual alignment with text */
+        }
+
+        .tfng-opt-label {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            padding: 4px 8px;
+            border-radius: 4px;
+            transition: background 0.2s;
+            border: 1px solid transparent;
+        }
+        
+        .tfng-opt-label:hover { background: #f5f5f5; }
+        
+        /* Preview Correct Answer Highlighting */
+        .tfng-opt-label.is-correct-preview {
+            background-color: #e8f5e9;
+            border-color: #2e7d32;
+            color: #1b5e20;
+        }
+
+        .tfng-correct-badge {
+            font-size: 10px;
+            font-weight: bold;
+            color: #2e7d32;
+            text-transform: uppercase;
+            margin-left: 4px;
+        }
+
+        /* --- Editor Panel Styles --- */
+        .editor-container { max-width: 900px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #f0f0f0; padding-bottom: 15px; margin-bottom: 20px; }
+        .btn-cancel { text-decoration: none; color: #666; border: 1px solid #ddd; padding: 6px 12px; border-radius: 4px; font-size: 14px; }
+        .btn-cancel:hover { background: #f9f9f9; }
+
+        .tfng-editor { font-family: Arial, sans-serif; font-size: 13px; }
+        
+        .ed-header-row { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #eee; padding-bottom: 10px; margin-bottom: 15px; }
+        .ed-btn-primary { background: #0072bc; color: white; border: none; padding: 6px 15px; border-radius: 4px; font-weight: bold; cursor: pointer; }
+        .ed-btn-primary:hover { background: #005a96; }
+
+        .ed-field-row { display: flex; gap: 15px; margin-bottom: 15px; }
+        .ed-field-col { display: flex; flex-direction: column; gap: 5px; }
+        .ed-field-col.grow { flex: 1; }
+        
+        .ed-label { font-size: 11px; font-weight: bold; color: #666; text-transform: uppercase; }
+        .ed-input, .ed-select { padding: 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; width: 100%; box-sizing: border-box; }
+        
+        /* Mode Switcher */
+        .mode-switch { display: flex; background: #eee; padding: 3px; border-radius: 6px; width: fit-content; }
+        .mode-opt { padding: 6px 12px; cursor: pointer; border-radius: 4px; font-weight: bold; color: #666; font-size: 13px; user-select: none; }
+        .mode-opt.active { background: #fff; color: #0072bc; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+
+        /* Question Editor List */
+        .ed-q-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 15px; background: #fafafa; padding: 10px; border: 1px solid #eee; border-radius: 4px; }
+        .ed-q-item { display: grid; grid-template-columns: 40px 1fr 140px 40px; gap: 10px; align-items: start; background: white; padding: 10px; border: 1px solid #e0e0e0; border-radius: 4px; }
+        .ed-q-num { font-weight: bold; text-align: center; padding-top: 8px; color: #555; }
+        .ed-del-btn { background: none; border: 1px solid #ffcdd2; color: #c62828; border-radius: 4px; cursor: pointer; height: 36px; width: 36px; display: flex; align-items: center; justify-content: center; font-size: 18px; }
+        .ed-del-btn:hover { background: #ffebee; }
+        
+        .ed-add-btn { width: 100%; padding: 10px; background: #fff; border: 1px dashed #0072bc; color: #0072bc; font-weight: bold; cursor: pointer; border-radius: 4px; }
+        .ed-add-btn:hover { background: #f0f7ff; }
+
+        /* Preview Area within Editor */
+        .preview-divider { margin: 30px 0 15px 0; border-top: 2px dashed #ddd; position: relative; }
+        .preview-label { position: absolute; top: -12px; left: 50%; transform: translateX(-50%); background: #f4f6f8; padding: 0 10px; color: #888; font-weight: bold; font-size: 12px; }
+
+    </style>
+</head>
+<body>
+
+<div class="editor-container">
+    <div class="header">
+        <h2 style="margin:0">TFNG / YNNG Block Editor</h2>
+        <a href="#" id="btnBack" class="btn-cancel">Cancel / Back</a>
+    </div>
+    <div id="editor-mount"></div>
+</div>
+
+<script>
+    /**
+     * LOGIC: TFNG Block
+     */
+    const tfngBlock = {
+        // Constants for the two modes
+        MODES: {
+            TFNG: { label: "TRUE / FALSE", options: ["TRUE", "FALSE", "NOT GIVEN"] },
+            YNNG: { label: "YES / NO", options: ["YES", "NO", "NOT GIVEN"] }
+        },
+
+        normalize(data) {
+            return {
+                numbering: data?.numbering || 'Questions 1–5',
+                instructions: data?.instructions || 'Do the following statements agree with the information given in the Reading Passage?',
+                mode: (data?.mode === 'YNNG') ? 'YNNG' : 'TFNG',
+                questions: Array.isArray(data?.questions) ? data.questions.map(q => ({
+                    id: q.id || Math.random().toString(36).substr(2, 9),
+                    statement: q.statement || '',
+                    answer: q.answer || 'NOT GIVEN' 
+                })) : []
+            };
+        },
+
+        // Render the "Taker" view (used for live preview here)
+        renderPreview(data) {
+            const safe = this.normalize(data);
+            const modeConfig = this.MODES[safe.mode];
+            
+            const div = document.createElement('div');
+            div.className = 'tfng-task';
+
+            div.innerHTML = `
+                <div class="cbt-instruction-box">
+                    <span class="tfng-numbering-text">${this.escapeHtml(safe.numbering)}</span>
+                    <span class="tfng-instruction-content">${this.escapeHtml(safe.instructions)}</span>
+                </div>
+                <div class="tfng-list">
+                    ${safe.questions.map((q, i) => {
+                        // In preview, we highlight the correct answer
+                        return `
+                        <div class="tfng-row">
+                            <div class="tfng-statement">
+                                <span class="tfng-q-num">${i + 1}</span>
+                                <span>${this.escapeHtml(q.statement || '...')}</span>
+                            </div>
+                            <div class="tfng-options-group">
+                                ${modeConfig.options.map(opt => {
+                                    const isCorrect = (q.answer === opt);
+                                    const cls = isCorrect ? 'is-correct-preview' : '';
+                                    return `
+                                        <label class="tfng-opt-label ${cls}">
+                                            <input type="radio" name="preview_q_${q.id}" disabled ${isCorrect ? 'checked' : ''}>
+                                            <span>${opt}</span>
+                                            ${isCorrect ? '<span class="tfng-correct-badge">✓</span>' : ''}
+                                        </label>
+                                    `;
+                                }).join('')}
+                            </div>
+                        </div>
+                        `;
+                    }).join('')}
+                </div>
+            `;
+            return div;
+        },
+
+        // Render the Editor UI
+        renderEditorPanel(data, ctx) {
+            const safe = this.normalize(data);
+            const container = document.createElement('div');
+            container.className = 'tfng-editor';
+
+            // Internal helper to re-render the whole panel or parts of it
+            const render = () => {
+                const modeConfig = this.MODES[safe.mode];
+
+                container.innerHTML = `
+                    <div class="ed-header-row">
+                        <span><strong>Settings</strong></span>
+                        <button id="btn-save" class="ed-btn-primary">Save Block</button>
+                    </div>
+
+                    <div class="ed-field-row">
+                        <div class="ed-field-col" style="flex:1">
+                            <label class="ed-label">Numbering</label>
+                            <input type="text" id="inp-num" class="ed-input" value="${this.escapeHtml(safe.numbering)}">
+                        </div>
+                        <div class="ed-field-col">
+                            <label class="ed-label">Mode</label>
+                            <div class="mode-switch">
+                                <div class="mode-opt ${safe.mode === 'TFNG' ? 'active' : ''}" data-mode="TFNG">TFNG</div>
+                                <div class="mode-opt ${safe.mode === 'YNNG' ? 'active' : ''}" data-mode="YNNG">YNNG</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="ed-field-row">
+                        <div class="ed-field-col grow">
+                            <label class="ed-label">Instructions</label>
+                            <input type="text" id="inp-instr" class="ed-input" value="${this.escapeHtml(safe.instructions)}">
+                        </div>
+                    </div>
+
+                    <div class="ed-q-list">
+                        <label class="ed-label">Questions</label>
+                        ${safe.questions.map((q, idx) => `
+                            <div class="ed-q-item" data-idx="${idx}">
+                                <div class="ed-q-num">Q${idx + 1}</div>
+                                <div class="ed-field-col">
+                                    <textarea class="ed-input inp-stmt" rows="2" placeholder="Question Statement">${this.escapeHtml(q.statement)}</textarea>
+                                </div>
+                                <div class="ed-field-col">
+                                    <select class="ed-select inp-ans">
+                                        ${modeConfig.options.map(opt => `
+                                            <option value="${opt}" ${q.answer === opt ? 'selected' : ''}>${opt}</option>
+                                        `).join('')}
+                                    </select>
+                                </div>
+                                <button class="ed-del-btn" title="Delete Question">×</button>
+                            </div>
+                        `).join('')}
+                        <button id="btn-add-q" class="ed-add-btn">+ Add Question</button>
+                    </div>
+
+                    <div class="preview-divider"><span class="preview-label">LIVE PREVIEW</span></div>
+                    <div id="preview-area"></div>
+                `;
+
+                // Inject Preview
+                container.querySelector('#preview-area').appendChild(this.renderPreview(safe));
+
+                attachEvents();
+            };
+
+            const attachEvents = () => {
+                // Save — force-sync numbering & instructions from DOM before saving
+                container.querySelector('#btn-save').onclick = () => {
+                    const numEl = container.querySelector('#inp-num');
+                    const instrEl = container.querySelector('#inp-instr');
+                    if (numEl) safe.numbering = numEl.value;
+                    if (instrEl) safe.instructions = instrEl.value;
+                    ctx.updateBlock(ctx.blockId, safe);
+                };
+ 
+                 // Inputs
+                 container.querySelector('#inp-num').oninput = (e) => { safe.numbering = e.target.value; updatePreview(); };
+                 container.querySelector('#inp-instr').oninput = (e) => { safe.instructions = e.target.value; updatePreview(); };
+ 
+                 // Mode Switching
+                 container.querySelectorAll('.mode-opt').forEach(btn => {
+                     btn.onclick = () => {
+                         const newMode = btn.dataset.mode;
+                         if (safe.mode === newMode) return;
+                         
+                         // Map answers if possible (True <-> Yes, False <-> No)
+                         safe.questions.forEach(q => {
+                             if (q.answer === 'TRUE') q.answer = 'YES';
+                             else if (q.answer === 'YES') q.answer = 'TRUE';
+                             else if (q.answer === 'FALSE') q.answer = 'NO';
+                             else if (q.answer === 'NO') q.answer = 'FALSE';
+                             // NOT GIVEN stays same
+                         });
+
+                         safe.mode = newMode;
+                         render(); // Full re-render needed for select options
+                     };
+                 });
+
+                 // Add Question
+                 container.querySelector('#btn-add-q').onclick = () => {
+                     safe.questions.push({ id: Math.random().toString(36).substr(2,9), statement: '', answer: 'NOT GIVEN' });
+                     render();
+                 };
+
+                 // Question Rows
+                 container.querySelectorAll('.ed-q-item').forEach(row => {
+                     const idx = row.dataset.idx;
+                     
+                     // Statement
+                     row.querySelector('.inp-stmt').oninput = (e) => {
+                         safe.questions[idx].statement = e.target.value;
+                         updatePreview(); // localized update logic implies re-rendering preview area usually
+                     };
+
+                     // Answer
+                     row.querySelector('.inp-ans').onchange = (e) => {
+                         safe.questions[idx].answer = e.target.value;
+                         updatePreview();
+                     };
+
+                     // Delete
+                     row.querySelector('.ed-del-btn').onclick = () => {
+                         safe.questions.splice(idx, 1);
+                         render();
+                     };
+                 });
+            };
+
+            const updatePreview = () => {
+                // Optimization: just wipe and re-render the preview div
+                const pArea = container.querySelector('#preview-area');
+                pArea.innerHTML = '';
+                pArea.appendChild(this.renderPreview(safe));
+            };
+
+            render();
+            return container;
+        },
+
+        escapeHtml(str) {
+            return (str ?? '').toString()
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+    };
+
+    // --- Initialization & Session Handling ---
+    const SESS_DATA = 'sys_editing_data';
+    const SESS_STATUS = 'sys_editing_status';
+
+    function resolveReturnUrl() {
+        const sessionUrl = sessionStorage.getItem('sys_return_url');
+        if (sessionUrl) return sessionUrl;
+        
+        const urlParams = new URLSearchParams(window.location.search);
+        const paramUrl = urlParams.get('returnUrl');
+        if (paramUrl) {
+            const decoded = decodeURIComponent(paramUrl);
+            sessionStorage.setItem('sys_return_url', decoded);
+            return decoded;
+        }
+        
+        // Fallback for standalone testing
+        const ref = document.referrer;
+        if (ref && ref.includes('Test_Editor_')) return ref;
+        return '#'; 
+    }
+
+    // Load initial Data
+    const raw = sessionStorage.getItem(SESS_DATA);
+    // Default structure if new block
+    const initialData = raw ? JSON.parse(raw) : { 
+        numbering: 'Questions 1–6', 
+        instructions: 'Do the following statements agree with the information given in the Reading Passage?', 
+        mode: 'TFNG', 
+        questions: [] 
+    };
+
+    const ctx = {
+        blockId: 'temp', // In a real app, this might come from params
+        updateBlock: (id, newData) => {
+            sessionStorage.setItem(SESS_DATA, JSON.stringify(newData));
+            sessionStorage.setItem(SESS_STATUS, 'saved');
+            const ret = resolveReturnUrl();
+            if (ret && ret !== '#') window.location.href = ret;
+            else alert('Saved! (No return URL defined)');
+        }
+    };
+    
+    // Setup Back Button
+    const btnBack = document.getElementById('btnBack');
+    btnBack.href = resolveReturnUrl();
+    btnBack.onclick = (e) => {
+        if (btnBack.getAttribute('href') === '#') {
+            e.preventDefault();
+            alert("No return URL found. Close tab or define 'returnUrl' in query.");
+        }
+    };
+
+    // Mount Editor
+    document.getElementById('editor-mount').appendChild(tfngBlock.renderEditorPanel(initialData, ctx));
+
+</script>
+</body>
+</html>

@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Exam Editor | Proctor</title>
+    <style>
+        :root { --ielts-blue: #0072bc; --bg: #f4f7f9; }
+        body { font-family: system-ui; background: var(--bg); margin: 0; padding: 20px; }
+        .header { display: flex; justify-content: space-between; align-items: center; background: white; padding: 15px 30px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        
+        .readiness-box {
+            background: white;
+            padding: 16px 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            border-left: 4px solid #ddd;
+        }
+        .readiness-box.ready { border-left-color: #10b981; }
+        .readiness-box.not-ready { border-left-color: #ef4444; }
+        .readiness-box.warning { border-left-color: #f59e0b; }
+        .readiness-title { font-weight: bold; font-size: 14px; margin-bottom: 10px; color: #333; }
+        .readiness-items { display: flex; flex-direction: column; gap: 6px; }
+        .readiness-item { font-size: 13px; display: flex; align-items: center; gap: 8px; }
+        .readiness-icon { font-size: 14px; }
+        
+        .rules-bar { background: #eef6fc; padding: 15px 30px; border-radius: 8px; margin-bottom: 20px; display: flex; gap: 20px; align-items: center; border: 1px solid #d0e4f5; }
+        .rules-bar label { font-size: 13px; font-weight: bold; color: #555; }
+        .rules-bar input { padding: 8px; width: 80px; border: 1px solid #ccc; border-radius: 4px; }
+
+        .editor-grid { display: grid; grid-template-columns: 1fr 1.5fr; gap: 20px; }
+        .panel { background: white; border-radius: 8px; padding: 20px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); height: 80vh; overflow-y: auto; }
+        .panel h2 { font-size: 16px; margin-top: 0; padding-bottom: 10px; border-bottom: 1px solid #eee; }
+
+        .library-filters { display: flex; gap: 8px; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid #eee; }
+        .filter-input { flex: 1; padding: 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 13px; }
+        .filter-select { padding: 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 13px; min-width: 140px; }
+
+        .item { padding: 12px; border: 1px solid #eee; border-radius: 6px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; transition: 0.2s; }
+        .item:hover { border-color: var(--ielts-blue); }
+        .item-info { flex: 1; }
+        .item-title { font-weight: bold; font-size: 14px; }
+        .item-meta { font-size: 12px; color: #888; }
+        
+        .btn-add { background: var(--ielts-blue); color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; }
+        
+        .comp-item { flex-direction: column; align-items: stretch; border-left: 4px solid var(--ielts-blue); }
+        .comp-header { display: flex; justify-content: space-between; align-items: center; }
+        .comp-controls { display: flex; gap: 5px; }
+        .btn-icon { background: #f0f0f0; border: none; cursor: pointer; border-radius: 3px; padding: 4px 8px; font-size: 12px; }
+        .btn-icon:hover { background: #ddd; }
+
+        .override-box { margin-top: 10px; padding-top: 10px; border-top: 1px dashed #eee; font-size: 12px; display: none; }
+        .override-box.active { display: block; }
+        .badge-override { font-size: 10px; background: #fff4e5; color: #b7791f; padding: 2px 6px; border-radius: 4px; border: 1px solid #fbd38d; margin-left: 10px; }
+        .btn-refresh { font-size: 10px; background: #dbeafe; color: #1e40af; padding: 2px 8px; border-radius: 4px; border: 1px solid #93c5fd; margin-left: 6px; cursor: pointer; }
+        .btn-refresh:hover { background: #bfdbfe; }
+        
+        #toast { position: fixed; bottom: 20px; right: 20px; background: #333; color: white; padding: 12px 24px; border-radius: 4px; display: none; }
+        
+        .empty-library { text-align: center; padding: 40px 20px; color: #999; font-size: 13px; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div>
+            <a href="Exam_Shell.html" style="color: #666; font-size: 13px; text-decoration: none;">&larr; Back to List</a>
+            <h1 id="examTitleDisplay" style="margin: 5px 0 0 0; font-size: 20px;">Loading Exam...</h1>
+        </div>
+        <div style="display: flex; align-items: center; gap: 12px;">
+            <span id="saveStatus" style="font-size: 12px; font-weight: 600; padding: 4px 10px; border-radius: 4px; background: #f0f0f0; color: #666;"></span>
+            <div id="statusBadge"></div>
+        </div>
+    </div>
+
+    <div class="readiness-box" id="readinessBox">
+        <div class="readiness-title">📋 Exam Readiness</div>
+        <div class="readiness-items" id="readinessItems">
+            <div class="readiness-item">Loading...</div>
+        </div>
+    </div>
+
+    <div class="rules-bar">
+        <label>GLOBAL TIME (MIN): <input type="number" id="gTime" placeholder="None"></label>
+        <label>MAX ATTEMPTS: <input type="number" id="gAttempts" placeholder="None"></label>
+        <label>GAP BETWEEN AUDIOS (SEC): <input type="number" id="gapBetweenAudios" placeholder="0" min="0"></label>
+        <label>EXTRA TIME AFTER AUDIO (MIN): <input type="number" id="extraAfterAudio" placeholder="10" min="0"></label>
+        <button class="btn-add" id="btnSaveRules">Save Rules</button>
+    </div>
+
+    <div class="editor-grid">
+        <div class="panel">
+            <h2>Test Library</h2>
+            <div class="library-filters">
+                <input type="search" id="testSearchInput" class="filter-input" placeholder="Search by test name...">
+                <select id="skillFilterSelect" class="filter-select">
+                    <option value="">All Skills</option>
+                    <option value="Listening">Listening</option>
+                    <option value="Reading">Reading</option>
+                    <option value="Writing">Writing</option>
+                    <option value="Speaking">Speaking</option>
+                </select>
+            </div>
+            <div id="testLibrary"></div>
+        </div>
+        <div class="panel">
+            <h2>Exam Components (Sequence)</h2>
+            <div id="componentList"></div>
+        </div>
+    </div>
+
+    <div id="toast">Saved Successfully</div>
+
+    <script type="module">
+        import { DB } from "../../db/db.tests.js";
+        import { EXAMS } from "../../db/db.exams.js";
+
+        const urlParams = new URLSearchParams(window.location.search);
+        const examId = urlParams.get('examId');
+        let currentExam = null;
+        let allTests = [];
+
+        // Save queue state
+        let saveTimer = null;
+        let saveInProgress = false;
+        let savePending = false;
+
+        if (!examId) {
+            alert("No Exam ID provided");
+            window.location.href = "Exam_Shell.html";
+        }
+
+        function makeId() {
+            if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+                return crypto.randomUUID();
+            }
+            return Math.random().toString(36).slice(2) + Date.now().toString(36);
+        }
+
+        function setSaveStatus(status) {
+            const el = document.getElementById('saveStatus');
+            if (!el) return;
+            
+            if (status === 'saving') {
+                el.textContent = 'Saving...';
+                el.style.background = '#fef3c7';
+                el.style.color = '#92400e';
+            } else if (status === 'saved') {
+                el.textContent = 'Saved';
+                el.style.background = '#d1fae5';
+                el.style.color = '#065f46';
+            } else if (status === 'error') {
+                el.textContent = 'Error';
+                el.style.background = '#fee2e2';
+                el.style.color = '#991b1b';
+            } else {
+                el.textContent = '';
+                el.style.background = '#f0f0f0';
+                el.style.color = '#666';
+            }
+        }
+
+        function scheduleSave() {
+            // Clear any pending timer
+            if (saveTimer) {
+                clearTimeout(saveTimer);
+                saveTimer = null;
+            }
+
+            // If save is in progress, mark that another save is needed
+            if (saveInProgress) {
+                savePending = true;
+                return;
+            }
+
+            // Schedule a debounced save
+            saveTimer = setTimeout(async () => {
+                saveTimer = null;
+                await runSave();
+            }, 500);
+        }
+
+        async function runSave() {
+            if (saveInProgress) return;
+            
+            saveInProgress = true;
+            setSaveStatus('saving');
+
+            try {
+                await EXAMS.updateExam(examId, {
+                    rules: currentExam.rules,
+                    components: currentExam.components,
+                    audioPlan: currentExam.audioPlan
+                });
+                
+                setSaveStatus('saved');
+                showToast('Saved');
+                
+                // Auto-hide saved status after 2 seconds
+                setTimeout(() => {
+                    if (document.getElementById('saveStatus')?.textContent === 'Saved') {
+                        setSaveStatus('');
+                    }
+                }, 2000);
+
+            } catch (err) {
+                console.error('Save failed:', err);
+                setSaveStatus('error');
+                showToast('Save failed');
+            } finally {
+                saveInProgress = false;
+
+                // If another save was requested during this one, run it now
+                if (savePending) {
+                    savePending = false;
+                    scheduleSave();
+                }
+            }
+        }
+
+        function showToast(msg) {
+            const t = document.getElementById('toast');
+            t.textContent = msg;
+            t.style.display = 'block';
+            setTimeout(() => t.style.display = 'none', 1500);
+        }
+
+        async function init() {
+            currentExam = await EXAMS.getExam(examId);
+            if (!currentExam) return;
+
+            document.getElementById('examTitleDisplay').textContent = currentExam.title;
+            document.getElementById('statusBadge').innerHTML = `<span style="color:#888; font-weight:bold">${currentExam.status.toUpperCase()}</span>`;
+            document.getElementById('gTime').value = currentExam.rules.timeLimitMin || '';
+            document.getElementById('gAttempts').value = currentExam.rules.attemptsAllowed || '';
+            
+            // Load audioPlan with backward compatible defaults
+            if (!currentExam.audioPlan) {
+                currentExam.audioPlan = {
+                    gapBetweenAudiosSec: 0,
+                    extraAfterAudioSec: 600  // 10 minutes default
+                };
+            }
+            document.getElementById('gapBetweenAudios').value = currentExam.audioPlan.gapBetweenAudiosSec || 0;
+            document.getElementById('extraAfterAudio').value = Math.round((currentExam.audioPlan.extraAfterAudioSec || 600) / 60);
+
+            setSaveStatus('');
+            await loadTests();
+            renderComponents();
+            updateReadinessBox();
+        }
+
+        async function loadTests() {
+            try {
+                allTests = await DB.listTests();
+                
+                // Sort by updatedAt desc, fallback to createdAt desc, then by name
+                allTests.sort((a, b) => {
+                    const aTime = new Date(a.updatedAt || a.createdAt || 0).getTime();
+                    const bTime = new Date(b.updatedAt || b.createdAt || 0).getTime();
+                    if (bTime !== aTime) return bTime - aTime;
+                    
+                    const aName = (a.name || a.title || '').toLowerCase();
+                    const bName = (b.name || b.title || '').toLowerCase();
+                    return aName.localeCompare(bName);
+                });
+                
+                renderFilteredTests();
+            } catch (err) {
+                console.error('Failed to load tests:', err);
+                document.getElementById('testLibrary').innerHTML = '<div class="empty-library">Failed to load tests. Please refresh.</div>';
+            }
+        }
+
+        function renderFilteredTests() {
+            const container = document.getElementById('testLibrary');
+            const searchQuery = (document.getElementById('testSearchInput')?.value || '').toLowerCase().trim();
+            const skillFilter = (document.getElementById('skillFilterSelect')?.value || '').trim();
+            
+            const filtered = allTests.filter(test => {
+                // Skill filter
+                if (skillFilter && (test.skill || '').toLowerCase() !== skillFilter.toLowerCase()) {
+                    return false;
+                }
+                
+                // Search filter
+                if (searchQuery) {
+                    const testName = (test.name || test.title || '').toLowerCase();
+                    if (!testName.includes(searchQuery)) {
+                        return false;
+                    }
+                }
+                
+                return true;
+            });
+
+            if (filtered.length === 0) {
+                container.innerHTML = '<div class="empty-library">No tests match your filters.</div>';
+                return;
+            }
+
+            container.innerHTML = '';
+            filtered.forEach(test => {
+                const div = document.createElement('div');
+                div.className = 'item';
+                div.innerHTML = `
+                    <div class="item-info">
+                        <div class="item-title">${test.name || test.title}</div>
+                        <div class="item-meta">${test.skill} • ${test.totalSections} Sections</div>
+                    </div>
+                    <button class="btn-add" onclick="addComponent('${test.id}', '${(test.name || test.title).replace(/'/g, "\\'")}', '${test.skill}')">ADD</button>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        // Wire up filter inputs
+        document.getElementById('testSearchInput')?.addEventListener('input', renderFilteredTests);
+        document.getElementById('skillFilterSelect')?.addEventListener('change', renderFilteredTests);
+
+        function updateReadinessBox() {
+            if (!currentExam) return;
+            
+            const box = document.getElementById('readinessBox');
+            const itemsContainer = document.getElementById('readinessItems');
+            
+            // Use centralized validation
+            const validation = EXAMS.validateExam(currentExam);
+            
+            const items = [];
+            
+            // Show validation results
+            if (validation.isValid) {
+                items.push(`<div class="readiness-item"><span class="readiness-icon">✅</span> Exam is ready to publish</div>`);
+            } else {
+                items.push(`<div class="readiness-item"><span class="readiness-icon">❌</span> Exam has validation errors</div>`);
+            }
+            
+            // Show errors
+            validation.errors.forEach(err => {
+                items.push(`<div class="readiness-item"><span class="readiness-icon">❌</span> ${err}</div>`);
+            });
+            
+            // Show warnings
+            validation.warnings.forEach(warn => {
+                items.push(`<div class="readiness-item"><span class="readiness-icon">⚠️</span> ${warn}</div>`);
+            });
+            
+            itemsContainer.innerHTML = items.join('');
+            
+            // Update box styling
+            box.classList.remove('ready', 'not-ready', 'warning');
+            if (validation.isValid) {
+                if (validation.warnings.length > 0) {
+                    box.classList.add('warning');
+                } else {
+                    box.classList.add('ready');
+                }
+            } else {
+                box.classList.add('not-ready');
+            }
+        }
+
+        window.addComponent = async (testId, title, skill) => {
+            // Find the test in allTests to get updatedAt
+            const test = allTests.find(t => t.id === testId);
+            const updatedAtSnapshot = test?.updatedAt || test?.createdAt || null;
+
+            const comp = {
+                id: makeId(),
+                testId,
+                titleSnapshot: title,
+                skillSnapshot: skill,
+                updatedAtSnapshot: updatedAtSnapshot,
+                rules: { timeLimitMin: null, attemptsAllowed: null }
+            };
+            currentExam.components.push(comp);
+            renderComponents();
+            updateReadinessBox();
+            scheduleSave();
+        };
+
+        window.renderComponents = () => {
+            const container = document.getElementById('componentList');
+            container.innerHTML = '';
+            if (currentExam.components.length === 0) container.innerHTML = '<p style="color:#888; font-size:14px">No components added yet.</p>';
+
+            // Create lookup map for test metadata
+            const testLookup = {};
+            allTests.forEach(t => {
+                testLookup[t.id] = {
+                    updatedAt: t.updatedAt || t.createdAt || null
+                };
+            });
+
+            currentExam.components.forEach((comp, idx) => {
+                const hasRules = comp.rules.timeLimitMin || comp.rules.attemptsAllowed;
+                
+                // Check if test has been updated since snapshot
+                let testUpdatedBadge = '';
+                if (comp.testId && comp.updatedAtSnapshot && testLookup[comp.testId]) {
+                    const currentUpdatedAt = testLookup[comp.testId].updatedAt;
+                    if (currentUpdatedAt && isNewer(currentUpdatedAt, comp.updatedAtSnapshot)) {
+                        testUpdatedBadge = `
+                            <span class="badge-override" style="background:#fff4e5; border-color:#fbbf24;" title="The referenced test has been updated since this component was added">⚠ Test Updated</span>
+                            <button class="btn-refresh" onclick="refreshSnapshot(${idx})" title="Refresh snapshot with latest test data">🔄 Refresh</button>
+                        `;
+                    }
+                }
+
+                const div = document.createElement('div');
+                div.className = 'item comp-item';
+                div.innerHTML = `
+                    <div class="comp-header">
+                        <div class="item-info">
+                            <span class="item-title">${idx + 1}. ${comp.titleSnapshot}</span>
+                            <span class="item-meta">(${comp.skillSnapshot})</span>
+                            ${hasRules ? '<span class="badge-override">Override Active</span>' : ''}
+                            ${testUpdatedBadge}
+                        </div>
+                        <div class="comp-controls">
+                            <button class="btn-icon" onclick="previewComponent('${comp.testId}')" title="Preview Test">👁</button>
+                            <button class="btn-icon" onclick="openComponentEditor('${comp.testId}', '${comp.skillSnapshot || 'Listening'}')" title="Open Editor">✎</button>
+                            <button class="btn-icon" onclick="move(${idx}, -1)">▲</button>
+                            <button class="btn-icon" onclick="move(${idx}, 1)">▼</button>
+                            <button class="btn-icon" onclick="toggleRules('${comp.id}')">⚙ RULES</button>
+                            <button class="btn-icon" style="color:red" onclick="removeComp(${idx})">✕</button>
+                        </div>
+                    </div>
+                    <div class="override-box" id="rules-${comp.id}">
+                        <label>Override Time: <input type="number" value="${comp.rules.timeLimitMin || ''}" onchange="updateCompRule('${comp.id}', 'timeLimitMin', this.value)"></label>
+                        <label>Override Attempts: <input type="number" value="${comp.rules.attemptsAllowed || ''}" onchange="updateCompRule('${comp.id}', 'attemptsAllowed', this.value)"></label>
+                    </div>
+                `;
+                container.appendChild(div);
+            });
+            updateReadinessBox();
+        };
+
+        function isNewer(currentTime, snapshotTime) {
+            if (!currentTime || !snapshotTime) return false;
+            
+            // Convert to timestamps for comparison
+            const current = typeof currentTime === 'string' ? new Date(currentTime).getTime() 
+                          : currentTime.toDate ? currentTime.toDate().getTime() 
+                          : new Date(currentTime).getTime();
+            
+            const snapshot = typeof snapshotTime === 'string' ? new Date(snapshotTime).getTime()
+                           : snapshotTime.toDate ? snapshotTime.toDate().getTime()
+                           : new Date(snapshotTime).getTime();
+            
+            return current > snapshot;
+        }
+
+        window.previewComponent = (testId) => {
+            window.open(`preview.html?testId=${testId}`, '_blank');
+        };
+
+        window.openComponentEditor = (testId, skill) => {
+            const editorMap = {
+                'Listening': 'Test_Editor_Listening.html',
+                'Reading': 'Test_Editor_Reading.html',
+                'Writing': 'Test_Editor_Writing.html',
+                'Speaking': 'Test_Editor_Speaking.html'
+            };
+            const editorPage = editorMap[skill] || 'Test_Editor_Listening.html';
+            window.location.href = `${editorPage}?testId=${testId}`;
+        };
+
+        window.move = async (idx, dir) => {
+            const target = idx + dir;
+            if (target < 0 || target >= currentExam.components.length) return;
+            const temp = currentExam.components[idx];
+            currentExam.components[idx] = currentExam.components[target];
+            currentExam.components[target] = temp;
+            renderComponents();
+            scheduleSave();
+        };
+
+        window.removeComp = async (idx) => {
+            currentExam.components.splice(idx, 1);
+            renderComponents();
+            updateReadinessBox();
+            scheduleSave();
+        };
+
+        window.toggleRules = (id) => {
+            const el = document.getElementById(`rules-${id}`);
+            if (el) el.classList.toggle('active');
+        };
+
+        window.updateCompRule = (id, field, val) => {
+            const comp = currentExam.components.find(c => c.id === id);
+            if (!comp) return;
+            comp.rules[field] = val === "" ? null : parseInt(val);
+            scheduleSave();
+        };
+
+        window.refreshSnapshot = async (componentIndex) => {
+            try {
+                setSaveStatus('saving');
+                
+                const result = await EXAMS.refreshComponentSnapshot(examId, componentIndex);
+                
+                if (!result.success) {
+                    throw new Error(result.error || 'Refresh failed');
+                }
+                
+                // Reload exam and re-render
+                currentExam = await EXAMS.getExam(examId);
+                await loadTests(); // Refresh test list as well
+                renderComponents();
+                
+                setSaveStatus('saved');
+                showToast('Snapshot refreshed');
+                
+                setTimeout(() => {
+                    if (document.getElementById('saveStatus')?.textContent === 'Saved') {
+                        setSaveStatus('');
+                    }
+                }, 2000);
+                
+            } catch (err) {
+                console.error('Refresh failed:', err);
+                setSaveStatus('error');
+                showToast('Refresh failed: ' + err.message);
+            }
+        };
+
+        document.getElementById('btnSaveRules').onclick = async () => {
+            currentExam.rules.timeLimitMin = parseInt(document.getElementById('gTime').value) || null;
+            currentExam.rules.attemptsAllowed = parseInt(document.getElementById('gAttempts').value) || null;
+            
+            // Update audioPlan (convert extra time from minutes to seconds)
+            const gapBetweenAudiosSec = parseInt(document.getElementById('gapBetweenAudios').value) || 0;
+            const extraAfterAudioMin = parseInt(document.getElementById('extraAfterAudio').value) || 10;
+            currentExam.audioPlan = {
+                gapBetweenAudiosSec: gapBetweenAudiosSec,
+                extraAfterAudioSec: extraAfterAudioMin * 60
+            };
+            
+            scheduleSave();
+        };
+
+        init();
+    </script>
+</body>
+</html>

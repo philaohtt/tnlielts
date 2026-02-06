@@ -1,0 +1,861 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Writing Editor | IELTS Mock Test Admin</title>
+
+<!-- Quill Rich Text Editor CDN -->
+<link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
+<script src="https://cdn.quilljs.com/1.3.6/quill.min.js"></script>
+
+<style>
+:root {
+  --primary: #c2410c; /* Orange-700 for Writing */
+  --primary-hover: #9a3412;
+  --bg: #fff7ed; /* Light Orange Tint */
+  --surface: #ffffff;
+  --text-main: #1a202c;
+  --text-muted: #64748b;
+  --border: #e2e8f0;
+  --radius: 12px;
+  --shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  --font: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body { height: 100%; }
+body {
+  font-family: var(--font);
+  background-color: var(--bg);
+  color: var(--text-main);
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* --- Header --- */
+.top-header {
+  height: 52px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  z-index: 100;
+}
+.header-left { display: flex; align-items: center; gap: 12px; }
+.logo-box {
+  background: none;
+  width: auto;
+  height: auto;
+  padding: 0;
+  color: var(--primary);
+  font-weight: 800;
+  font-size: 16px;
+  cursor: pointer;
+  border-radius: 0;
+}
+.header-title { font-weight: 700; font-size: 18px; }
+.page-indicator { color: var(--text-muted); font-weight: 400; margin-left: 8px; border-left: 1px solid var(--border); padding-left: 12px; }
+.header-right { display: flex; align-items: center; gap: 16px; }
+
+.main-container {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+  min-height: 0;
+}
+.builder-view {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: 100%;
+  min-height: 0;
+}
+.builder-header {
+  background: var(--surface);
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.builder-header-info { display: flex; align-items: center; gap: 8px; }
+.editable-name { font-size: 16px; font-weight: 700; border: 1px solid transparent; padding: 3px 6px; border-radius: 4px; background: transparent; }
+.badge { font-size: 9px; font-weight: 700; padding: 1px 6px; border-radius: 4px; text-transform: uppercase; line-height: 1; }
+.badge-writing { background: #ffedd5; color: #c2410c; }
+.builder-actions { display: flex; gap: 12px; }
+
+.builder-content {
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  flex: 1;
+  overflow: hidden;
+  justify-content: start;
+  height: 100%;
+  min-height: 0;
+}
+
+/* --- Sidebar Timeline --- */
+.section-timeline {
+  background: #fff;
+  border-right: 1px solid var(--border);
+  padding: 20px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow-y: auto;
+  min-height: 0;
+}
+.timeline-item {
+  padding: 12px 10px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  cursor: pointer;
+  transition: 0.2s;
+  text-align: left;
+  background: #fff;
+}
+.timeline-item.active { border-color: var(--primary); background: #fff7ed; }
+.timeline-label { font-weight: 800; font-size: 13px; margin-bottom: 4px; text-align: center; }
+.timeline-meta { font-size: 11px; color: var(--text-muted); text-align: center; }
+
+/* --- Workspace --- */
+.workspace {
+  background: #fff7ed;
+  overflow: hidden;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+.section-editor {
+  flex: 1;
+  padding: 20px;
+  overflow-y: auto;
+  height: 100%;
+  min-height: 0;
+  max-width: 1000px;
+  margin: 0;
+  padding-left: 32px;
+  padding-right: 32px;
+  width: 100%;
+}
+
+.field-group { margin-bottom: 16px; }
+.field-label { display: block; font-size: 13px; font-weight: 600; color: var(--text-muted); margin-bottom: 8px; }
+.input-text { width: 100%; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--border); font-size: 13px; }
+.input-textarea { width: 100%; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--border); font-size: 13px; min-height: 70px; font-family: var(--font); resize: vertical; }
+
+/* Rich Text Editor Styling */
+#promptEditorContainer {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+#promptToolbar {
+  border-bottom: 1px solid var(--border) !important;
+  background: #f8fafc;
+}
+#promptEditor {
+  min-height: 520px;
+  font-size: 16px;
+  line-height: 1.65;
+  font-family: var(--font);
+  background: #fff;
+}
+.ql-container.ql-snow { border: none !important; }
+
+/* Make images behave nicely in paragraphs (so alignment works) */
+.ql-editor img {
+  max-width: 100%;
+  height: auto;
+  display: inline-block;
+}
+
+/* Buttons & Status */
+.btn {
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: 0.2s;
+  border: 1px solid transparent;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.btn-sm { padding: 6px 12px; font-size: 13px; }
+.btn-primary-red { background: #d02331; color: #fff; border-color: transparent; }
+.btn-primary-red:hover { background: #a91a28; }
+.btn-outline { background: #fff; border: 1px solid var(--border); color: #475569; }
+.btn-outline:hover { background: #f8fafc; border-color: #cbd5e1; }
+
+.status-pill {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 8px;
+  border-radius: 999px;
+  text-transform: uppercase;
+  display: inline-block;
+  margin-left: 8px;
+}
+.status-draft { background: #f3f4f6; color: #374151; }
+.status-published { background: #dcfce7; color: #166534; }
+
+.loading-overlay {
+  position: fixed; inset: 0; background: rgba(255,255,255,0.8); z-index: 500;
+  display: flex; align-items: center; justify-content: center; font-weight: 600; color: var(--primary);
+}
+.hidden { display: none !important; }
+
+.toast-container {
+  position: fixed; bottom: 24px; right: 24px;
+  display: flex; flex-direction: column; gap: 8px; z-index: 2000;
+}
+.toast {
+  background: #1e293b; color: #fff; padding: 12px 20px;
+  border-radius: 8px; font-size: 14px; box-shadow: var(--shadow);
+  animation: slideIn 0.3s ease-out;
+}
+@keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+/* --- FIXED Image Resizer Overlay (viewport-based; clean UI) --- */
+#imgResizerOverlay {
+  position: fixed;              /* ✅ KEY FIX: fixed to viewport */
+  border: 2px dashed rgba(194,65,12,0.95);
+  background: rgba(194,65,12,0.05);
+  border-radius: 8px;
+  display: none;
+  z-index: 9999;
+  pointer-events: none;
+}
+.img-handle {
+  width: 11px;
+  height: 11px;
+  background: rgba(194,65,12,0.95);
+  border: 2px solid #fff;
+  position: absolute;
+  border-radius: 999px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  pointer-events: auto;
+}
+.img-handle.br { right: -7px; bottom: -7px; cursor: nwse-resize; }
+.img-handle.tr { right: -7px; top: -7px; cursor: nesw-resize; }
+.img-handle.bl { left: -7px; bottom: -7px; cursor: nesw-resize; }
+.img-handle.tl { left: -7px; top: -7px; cursor: nwse-resize; }
+</style>
+</head>
+
+<body>
+<header class="top-header">
+  <div class="header-left">
+    <div class="logo-box" onclick="goDashboard()" title="Back to Dashboard">IELTS</div>
+    <div class="header-title">Writing Editor <span class="page-indicator" id="headerTestName">...</span></div>
+  </div>
+  <div class="header-right">
+    <button class="btn btn-outline btn-sm" onclick="goDashboard()">Back to Dashboard</button>
+  </div>
+</header>
+
+<main class="main-container">
+  <section class="workspace" id="workspace">
+    <div id="loadingOverlay" class="loading-overlay">Loading Test Data...</div>
+
+    <div class="builder-view" id="builderView">
+      <div class="builder-header">
+        <div class="builder-header-info">
+          <input type="text" class="editable-name" id="builderTestName" value="Loading..." readonly>
+          <span class="badge badge-writing">Writing</span>
+          <span id="statusPill" class="status-pill status-draft hidden">Draft</span>
+        </div>
+        <div class="builder-actions">
+          <button class="btn btn-primary-red btn-sm hidden" id="publishButton" onclick="togglePublish()">Publish</button>
+        </div>
+      </div>
+
+      <div class="builder-content">
+        <div class="section-timeline" id="sectionTimeline"></div>
+
+        <div class="section-editor">
+          <div class="field-group">
+            <label class="field-label">Task Title</label>
+            <input type="text" class="input-text" id="sectionTitle" placeholder="e.g. Part 1 - Chart / Part 2 - Essay">
+          </div>
+
+          <div class="field-group">
+            <label class="field-label">Instructions (Guidance Text)</label>
+            <textarea class="input-textarea" id="sectionInstructionsText" placeholder="e.g. You should spend about 20 minutes on this task. Write at least 150 words."></textarea>
+          </div>
+
+          <div class="field-group">
+            <label class="field-label">Prompt (Upload / Paste / Resize Images)</label>
+            <div id="promptEditorContainer">
+              <div id="promptToolbar">
+                <span class="ql-formats">
+                  <select class="ql-header">
+                    <option selected></option>
+                    <option value="2"></option>
+                    <option value="3"></option>
+                  </select>
+                </span>
+
+                <span class="ql-formats">
+                  <button class="ql-bold"></button>
+                  <button class="ql-italic"></button>
+                  <button class="ql-underline"></button>
+                </span>
+
+                <span class="ql-formats">
+                  <button class="ql-list" value="ordered"></button>
+                  <button class="ql-list" value="bullet"></button>
+                </span>
+
+                <!-- ✅ Alignment controls -->
+                <span class="ql-formats">
+                  <select class="ql-align">
+                    <option selected></option>
+                    <option value="center"></option>
+                    <option value="right"></option>
+                    <option value="justify"></option>
+                  </select>
+                </span>
+
+                <span class="ql-formats">
+                  <button class="ql-link"></button>
+                  <button class="ql-image"></button>
+                  <button class="ql-clean"></button>
+                </span>
+              </div>
+              <div id="promptEditor"></div>
+            </div>
+            <div style="margin-top:10px; font-size:12px; color:var(--text-muted);">
+              Tip: Paste screenshots (Ctrl+V) or drag-drop images. Use the Align control to align text/images.
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <input id="imgUploadInput" type="file" accept="image/*" class="hidden">
+
+    <!-- Resizer overlay -->
+    <div id="imgResizerOverlay">
+      <div class="img-handle tl" data-handle="tl"></div>
+      <div class="img-handle tr" data-handle="tr"></div>
+      <div class="img-handle bl" data-handle="bl"></div>
+      <div class="img-handle br" data-handle="br"></div>
+    </div>
+  </section>
+</main>
+
+<div class="toast-container" id="toastContainer"></div>
+
+<script type="module">
+import { DB } from "../../db/db.tests.js";
+import { getStorage, ref as sRef, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
+
+// ============================================
+// STATE
+// ============================================
+
+const CURRENT_SKILL = 'Writing';
+let currentTest = null;
+let quill = null;
+let activeSectionIndex = 0;
+
+const UI_STATE_KEY = (testId) => `writing_editor_ui_state::${testId}`;
+
+// ============================================
+// UI
+// ============================================
+
+function saveUiState(testId) {
+  if(!testId) return;
+  try {
+    const state = { activeSectionIndex };
+    sessionStorage.setItem(UI_STATE_KEY(testId), JSON.stringify(state));
+  } catch (e) { console.warn('saveUiState err', e); }
+}
+
+function restoreUiState(testId) {
+  try {
+    const raw = sessionStorage.getItem(UI_STATE_KEY(testId));
+    if (!raw) return;
+    const s = JSON.parse(raw);
+    if (typeof s.activeSectionIndex === 'number') activeSectionIndex = s.activeSectionIndex;
+  } catch (e) { console.warn('restoreUiState err', e); }
+}
+
+// ============================================
+// EVENTS
+// ============================================
+
+window.onload = async function() {
+  try {
+    initQuill();
+
+    const params = new URLSearchParams(window.location.search);
+    const testId = params.get('testId');
+
+    if (!testId) {
+      alert("No Test ID specified. Returning to dashboard.");
+      window.location.href = 'Test_Editor_Shell.html';
+      return;
+    }
+
+    restoreUiState(testId);
+    await loadTest(testId, { preserveActiveSection: true });
+
+  } catch (e) {
+    console.error("Init error", e);
+    showToast("Init error (see console)");
+  } finally {
+    document.getElementById('loadingOverlay').classList.add('hidden');
+  }
+};
+
+window.addEventListener('beforeunload', () => {
+  savePromptHtml();
+  saveInstructionsText();
+  saveUiState(currentTest?.id);
+});
+
+// --- QUILL + IMAGES ---
+function initQuill() {
+  quill = new Quill('#promptEditor', {
+    theme: 'snow',
+    modules: {
+      toolbar: {
+        container: '#promptToolbar',
+        handlers: { image: () => openImagePicker() }
+      }
+    },
+    placeholder: 'Write the task prompt here. You can paste images directly.'
+  });
+
+  quill.on('selection-change', (range) => {
+    if (!range) savePromptHtml();
+  });
+
+  const editorEl = quill.root;
+
+  // Paste images from clipboard
+  editorEl.addEventListener('paste', async (e) => {
+    try {
+      const items = e.clipboardData?.items;
+      if (!items) return;
+      for (const item of items) {
+        if (item.kind === 'file' && item.type.startsWith('image/')) {
+          e.preventDefault();
+          const file = item.getAsFile();
+          if (file) await insertImageFileAsDataUrl(file);
+          return;
+        }
+      }
+    } catch (err) { console.warn('paste image err', err); }
+  });
+
+  // Drag & drop images
+  editorEl.addEventListener('drop', async (e) => {
+    try {
+      const files = e.dataTransfer?.files;
+      if (!files || !files.length) return;
+      const imgFile = Array.from(files).find(f => f.type && f.type.startsWith('image/'));
+      if (!imgFile) return;
+      e.preventDefault();
+      await insertImageFileAsDataUrl(imgFile);
+    } catch (err) { console.warn('drop image err', err); }
+  });
+
+  setupImageResizerOverlay();
+
+  // When the page scrolls, keep overlay aligned
+  document.getElementById('workspace')?.addEventListener('scroll', () => {
+    if (selectedImg) positionOverlay(selectedImg);
+  }, { passive: true });
+
+  window.addEventListener('scroll', () => {
+    if (selectedImg) positionOverlay(selectedImg);
+  }, { passive: true });
+
+  window.addEventListener('resize', () => {
+    if (selectedImg) positionOverlay(selectedImg);
+  });
+}
+
+function openImagePicker() {
+  const input = document.getElementById('imgUploadInput');
+  if (!input) return;
+  input.onchange = async () => {
+    const f = input.files?.[0];
+    input.value = '';
+    if (!f) return;
+    await insertImageFileAsDataUrl(f);
+  };
+  input.click();
+}
+
+async function insertImageFileAsDataUrl(file) {
+  if (!currentTest || !currentTest.id) {
+    showToast("Error: Test not loaded");
+    return;
+  }
+  
+  const section = currentTest.data[activeSectionIndex];
+  if (!section || !section.id) {
+    showToast("Error: Section not loaded");
+    return;
+  }
+
+  showToast("Uploading image...");
+  
+  try {
+    // Upload to Firebase Storage
+    const storage = getStorage();
+    const timestamp = Date.now();
+    const safeName = (file.name || 'image.png').replace(/[^a-z0-9._-]/gi, '_').toLowerCase();
+    const path = `writing_prompts/${currentTest.id}/${section.id}/${timestamp}_${safeName}`;
+    const storageRef = sRef(storage, path);
+    
+    await uploadBytes(storageRef, file);
+    const downloadUrl = await getDownloadURL(storageRef);
+    
+    // Insert image URL into Quill
+    const range = quill.getSelection(true) || { index: quill.getLength(), length: 0 };
+    quill.insertEmbed(range.index, 'image', downloadUrl, 'user');
+    quill.setSelection(range.index + 1, 0, 'silent');
+    
+    showToast("Image inserted");
+    setTimeout(() => savePromptHtml(), 0);
+    
+  } catch (err) {
+    console.error("Image upload error:", err);
+    
+    // If Firebase upload fails due to permissions, try inserting as data URL
+    if (err.code === 'storage/unauthorized' || err.code === 'storage/permission-denied') {
+      console.log("Firebase upload failed due to permissions, using data URL instead...");
+      try {
+        const dataUrl = await readFileAsDataURL(file);
+        const range = quill.getSelection(true) || { index: quill.getLength(), length: 0 };
+        quill.insertEmbed(range.index, 'image', dataUrl, 'user');
+        quill.setSelection(range.index + 1, 0, 'silent');
+        showToast("Image inserted as data URL (stored locally)");
+        setTimeout(() => savePromptHtml(), 0);
+        return;
+      } catch (dataUrlErr) {
+        console.error("Data URL fallback error:", dataUrlErr);
+        showToast("Error: Firebase permission denied. Contact administrator to configure storage rules.");
+        return;
+      }
+    }
+    
+    showToast("Upload failed: " + (err.message || "Unknown error"));
+  }
+}
+
+function readFileAsDataURL(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = reject;
+    reader.onload = () => resolve(reader.result);
+    reader.readAsDataURL(file);
+  });
+}
+
+// --- IMAGE RESIZER (FIXED UI) ---
+let selectedImg = null;
+let dragState = null;
+
+function setupImageResizerOverlay() {
+  const overlay = document.getElementById('imgResizerOverlay');
+  if (!overlay || !quill) return;
+
+  // Click image -> show overlay
+  document.addEventListener('click', (e) => {
+    const img = e.target?.tagName === 'IMG' && e.target.closest('.ql-editor') ? e.target : null;
+    if (img) selectImage(img);
+    else deselectImage();
+  }, true);
+
+  overlay.querySelectorAll('.img-handle').forEach(handle => {
+    handle.addEventListener('mousedown', (e) => {
+      if (!selectedImg) return;
+      e.preventDefault();
+      e.stopPropagation();
+
+      const rect = selectedImg.getBoundingClientRect();
+      dragState = {
+        startX: e.clientX,
+        startY: e.clientY,
+        startW: rect.width,
+        startH: rect.height,
+        handle: handle.dataset.handle
+      };
+
+      window.addEventListener('mousemove', onResizeMove, true);
+      window.addEventListener('mouseup', onResizeEnd, true);
+    });
+  });
+}
+
+function selectImage(img) {
+  selectedImg = img;
+  const rect = img.getBoundingClientRect();
+  if (!img.style.width) img.style.width = Math.round(rect.width) + 'px';
+  if (!img.style.height) img.style.height = 'auto';
+  positionOverlay(img);
+}
+
+function deselectImage() {
+  selectedImg = null;
+  dragState = null;
+  const overlay = document.getElementById('imgResizerOverlay');
+  if (overlay) overlay.style.display = 'none';
+}
+
+function positionOverlay(img) {
+  const overlay = document.getElementById('imgResizerOverlay');
+  if (!overlay) return;
+
+  const r = img.getBoundingClientRect(); // viewport coordinates
+  overlay.style.display = 'block';
+  overlay.style.left = r.left + 'px';
+  overlay.style.top = r.top + 'px';
+  overlay.style.width = r.width + 'px';
+  overlay.style.height = r.height + 'px';
+}
+
+function onResizeMove(e) {
+  if (!selectedImg || !dragState) return;
+
+  const dx = e.clientX - dragState.startX;
+  const dy = e.clientY - dragState.startY;
+
+  let newW = dragState.startW + dx;
+  let newH = dragState.startH + dy;
+
+  newW = Math.max(80, newW);
+  newH = Math.max(60, newH);
+
+  // Keep aspect ratio if Shift is held
+  if (e.shiftKey) {
+    const aspect = dragState.startW / dragState.startH;
+    newH = newW / aspect;
+  }
+
+  selectedImg.style.width = Math.round(newW) + 'px';
+  selectedImg.style.height = 'auto';
+
+  positionOverlay(selectedImg);
+}
+
+function onResizeEnd() {
+  window.removeEventListener('mousemove', onResizeMove, true);
+  window.removeEventListener('mouseup', onResizeEnd, true);
+  savePromptHtml();
+  dragState = null;
+}
+
+// ============================================
+// DB
+// ============================================
+
+// --- DATA LOGIC ---
+window.loadTest = async function(id, opts = {}) {
+  try {
+    currentTest = await DB.loadTest(id);
+
+    if (currentTest.skill !== CURRENT_SKILL) {
+      console.warn(`Test ID ${id} is ${currentTest.skill}, but Editor is for ${CURRENT_SKILL}.`);
+    }
+
+    if (!opts.preserveActiveSection || typeof activeSectionIndex !== 'number') activeSectionIndex = 0;
+    if (!Array.isArray(currentTest.data) || currentTest.data.length === 0) activeSectionIndex = 0;
+    if (activeSectionIndex < 0 || activeSectionIndex >= currentTest.data.length) activeSectionIndex = 0;
+
+    document.getElementById('builderTestName').value = currentTest.name;
+    document.getElementById('headerTestName').innerText = currentTest.name;
+
+    currentTest.status = currentTest.status || 'draft';
+    renderPublishButton();
+    renderTimeline();
+    renderSectionEditor();
+
+  } catch(e) {
+    console.error(e);
+    showToast("Failed to load test");
+  }
+};
+
+function renderTimeline() {
+  if (!currentTest) return;
+  const timeline = document.getElementById('sectionTimeline');
+  timeline.innerHTML = '';
+
+  const itemsHtml = (currentTest.data || []).map((sec, idx) => {
+    const title = (sec.title && sec.title.trim()) ? sec.title.trim() : `Task ${idx + 1}`;
+    const meta = idx === 0 ? "Usually 150 words" : "Usually 250 words";
+    return `
+      <div class="timeline-item ${activeSectionIndex === idx ? 'active' : ''}" onclick="switchSection(${idx})">
+        <div class="timeline-label">${title}</div>
+        <div class="timeline-meta">${meta}</div>
+      </div>
+    `;
+  }).join('');
+  timeline.innerHTML = itemsHtml;
+}
+
+function renderSectionEditor() {
+  if (!currentTest) return;
+  const section = currentTest.data[activeSectionIndex];
+  if (!section) return;
+
+  document.getElementById('sectionTitle').value = section.title || '';
+
+  // new: instructionsText
+  const instructionsTextEl = document.getElementById('sectionInstructionsText');
+  instructionsTextEl.value = section.instructionsText || '';
+
+  // new: promptHtml with backward compatibility
+  if (quill) {
+    let promptHtml = section.promptHtml;
+    if (!promptHtml && section.instructions && section.instructions.includes('<')) {
+      promptHtml = section.instructions; // legacy fallback
+    }
+    quill.root.innerHTML = promptHtml || '';
+  }
+
+  deselectImage();
+}
+
+window.switchSection = async function(index) {
+  if (index === activeSectionIndex) return;
+  await savePromptHtml();
+  await saveInstructionsText();
+
+  activeSectionIndex = index;
+  renderTimeline();
+  renderSectionEditor();
+  saveUiState(currentTest?.id);
+};
+
+async function savePromptHtml() {
+  if (!currentTest || !quill) return;
+  const section = currentTest.data[activeSectionIndex];
+  const currentHtml = quill.root.innerHTML;
+
+  if (section && section.promptHtml !== currentHtml) {
+    try {
+      await DB.updateSection(currentTest.id, section.id, { promptHtml: currentHtml });
+      section.promptHtml = currentHtml;
+    } catch (err) { console.error('Save prompt error', err); }
+  }
+}
+
+async function saveInstructionsText() {
+  if (!currentTest) return;
+  const section = currentTest.data[activeSectionIndex];
+  const el = document.getElementById('sectionInstructionsText');
+  const text = el.value;
+
+  if (section && section.instructionsText !== text) {
+    try {
+      await DB.updateSection(currentTest.id, section.id, { instructionsText: text });
+      section.instructionsText = text;
+    } catch (err) { console.error('Save instructions error', err); }
+  }
+}
+
+document.getElementById('sectionTitle')?.addEventListener('blur', async function() {
+  if (!currentTest) return;
+  const section = currentTest.data[activeSectionIndex];
+  if (section && section.title !== this.value) {
+    try {
+      await DB.updateSection(currentTest.id, section.id, { title: this.value });
+      section.title = this.value;
+      renderTimeline();
+    } catch (err) { console.error(err); }
+  }
+});
+
+document.getElementById('sectionInstructionsText')?.addEventListener('blur', async function() {
+  await saveInstructionsText();
+});
+
+// --- PUBLISHING ---
+function renderPublishButton() {
+  const publishButton = document.getElementById('publishButton');
+  const statusPill = document.getElementById('statusPill');
+  if (!currentTest || !publishButton || !statusPill) return;
+
+  const status = currentTest.status || 'draft';
+
+  if (status === 'published') {
+    publishButton.innerText = 'Unpublish';
+    publishButton.classList.remove('hidden');
+    statusPill.classList.remove('hidden');
+    statusPill.innerText = 'Published';
+    statusPill.classList.add('status-published');
+    statusPill.classList.remove('status-draft');
+  } else {
+    publishButton.innerText = 'Publish';
+    publishButton.classList.remove('hidden');
+    statusPill.classList.remove('hidden');
+    statusPill.innerText = 'Draft';
+    statusPill.classList.add('status-draft');
+    statusPill.classList.remove('status-published');
+  }
+}
+
+window.togglePublish = async function() {
+  if (!currentTest) return;
+  await savePromptHtml();
+  await saveInstructionsText();
+
+  const testId = currentTest.id;
+  const isPublished = currentTest.status === 'published';
+
+  try {
+    if (isPublished) {
+      await DB.unpublishTest(testId);
+      currentTest.status = 'draft';
+      showToast('Test unpublished');
+    } else {
+      await DB.publishTest(testId);
+      currentTest.status = 'published';
+      showToast('Test published');
+    }
+    renderPublishButton();
+  } catch (err) {
+    console.error('togglePublish error', err);
+    showToast('Failed to update publish status');
+  }
+};
+
+// --- UTILS ---
+window.goDashboard = function() { window.location.href = 'Test_Editor_Shell.html'; };
+
+window.showToast = function(message) {
+  const container = document.getElementById('toastContainer');
+  const toast = document.createElement('div');
+  toast.className = 'toast';
+  toast.innerText = message;
+  container.appendChild(toast);
+  setTimeout(() => {
+    toast.style.opacity = '0';
+    setTimeout(() => toast.remove(), 500);
+  }, 3000);
+};
+</script>
+</body>
+</html>

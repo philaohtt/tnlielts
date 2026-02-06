@@ -1,0 +1,1438 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Examiner - Attempt View</title>
+    <style>
+            .writing-task {
+                margin: 14px 0;
+            }
+
+            .writing-task-title {
+                font-weight: 700;
+                margin-bottom: 8px;
+            }
+
+            .writing-prompt {
+                background: #fff;
+                border: 1px solid #e2e8f0;
+                border-radius: 10px;
+                padding: 12px;
+                margin-bottom: 10px;
+            }
+
+            .writing-instructions {
+                color: #475569;
+                font-size: 13px;
+                margin-bottom: 10px;
+                line-height: 1.5;
+            }
+
+            .writing-response {
+                background: #f8fafc;
+                border: 1px solid #e2e8f0;
+                border-radius: 10px;
+                padding: 12px;
+                white-space: pre-wrap;
+                line-height: 1.6;
+            }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: #f5f7fa;
+            color: #333;
+        }
+
+        .app-shell {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) 340px;
+            gap: 20px;
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        @media (max-width: 1024px) {
+            .app-shell {
+                grid-template-columns: 1fr;
+            }
+            .grading-panel {
+                order: 2;
+            }
+            .main-content {
+                order: 1;
+            }
+        }
+
+        .header {
+            grid-column: 1 / -1;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: #fff;
+            padding: 16px 20px;
+            border-radius: 10px;
+            border: 1px solid #e0e0e0;
+            margin-bottom: 10px;
+        }
+
+        .header h1 {
+            font-size: 20px;
+            font-weight: 600;
+        }
+
+        .header-buttons {
+            display: flex;
+            gap: 12px;
+        }
+
+        .header-buttons button {
+            padding: 8px 16px;
+            border: 1px solid #d0d0d0;
+            background: #fff;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+
+        .header-buttons button:hover {
+            background: #f5f5f5;
+            border-color: #999;
+        }
+
+        .header-buttons button.primary {
+            background: #0078d4;
+            color: #fff;
+            border-color: #0078d4;
+        }
+
+        .header-buttons button.primary:hover {
+            background: #005a9e;
+        }
+
+        .main-content {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .attempt-main {
+            background: #fff;
+            padding: 18px;
+            border-radius: 10px;
+            border: 1px solid #eee;
+        }
+
+        .candidate-like {
+            max-width: 980px;
+            margin: 0 auto;
+            overflow-wrap: break-word;
+            word-wrap: break-word;
+        }
+
+        .blocks-container {
+            display: flex;
+            flex-direction: column;
+            gap: 0;
+            max-width: 100%;
+        }
+
+        .block-wrapper {
+            border-bottom: 1px solid #e8e8e8;
+            padding: 20px 0;
+            position: relative;
+            max-width: 100%;
+        }
+
+        .block-wrapper:last-child {
+            border-bottom: none;
+        }
+
+        .block-wrapper:first-child {
+            padding-top: 0;
+        }
+
+        /* Auto-grading indicators */
+        .block-grading-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 600;
+            margin-bottom: 12px;
+        }
+
+        .block-grading-badge.auto {
+            background: linear-gradient(135deg, #d1fae5, #a7f3d0);
+            color: #065f46;
+            border: 1px solid #6ee7b7;
+        }
+
+        .block-grading-badge.manual {
+            background: linear-gradient(135deg, #fef3c7, #fde68a);
+            color: #92400e;
+            border: 1px solid #fbbf24;
+        }
+
+        .block-grading-badge svg {
+            width: 16px;
+            height: 16px;
+        }
+
+        /* Auto-score result display */
+        .block-auto-score {
+            display: inline-flex;
+            align-items: center;
+            gap: 16px;
+            padding: 8px 14px;
+            background: #f0f9ff;
+            border: 1px solid #bfdbfe;
+            border-radius: 6px;
+            font-size: 14px;
+            margin-bottom: 12px;
+        }
+
+        .block-auto-score .score-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .block-auto-score .score-label {
+            color: #64748b;
+            font-weight: 500;
+        }
+
+        .block-auto-score .score-value {
+            color: #0369a1;
+            font-weight: 700;
+        }
+
+        /* Disabled state for auto-scored blocks */
+        .block-wrapper.auto-scored input:not([type="hidden"]),
+        .block-wrapper.auto-scored select,
+        .block-wrapper.auto-scored textarea {
+            background-color: #f9fafb;
+            cursor: not-allowed;
+            opacity: 0.7;
+        }
+
+        /* Candidate-like passage typography */
+        .passage-area,
+        .gap-passage {
+            line-height: 2.2;
+            font-size: 16px;
+            color: #333;
+            max-width: 100%;
+            overflow-wrap: break-word;
+            word-wrap: break-word;
+        }
+
+        /* Gap fill compatibility */
+        .gap-block {
+            display: block;
+            margin: 16px 0;
+            max-width: 100%;
+            overflow-wrap: break-word;
+            word-wrap: break-word;
+        }
+
+        .gap-input-wrap,
+        .gap-input-wrapper {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            max-width: 100%;
+            vertical-align: middle;
+            line-height: 1;
+        }
+
+        .gap-input,
+        .cbt-gap-input {
+            border-radius: 4px;
+            padding: 4px 8px;
+            width: 120px;
+            max-width: 100%;
+            border: 1px solid #ccc;
+            font-size: 14px;
+            font-family: inherit;
+            box-sizing: border-box;
+            vertical-align: middle;
+            line-height: 1.2;
+        }
+
+        .gap-input {
+            text-align: left;
+        }
+
+        /* Disabled inputs - read-only examiner view */
+        .gap-input:disabled,
+        .cbt-gap-input:disabled {
+            opacity: 1;
+            background: #f1f5ff;
+            color: #111;
+            border-color: #d0d0d0;
+            cursor: not-allowed;
+        }
+
+        /* MCQ and TFNG compatibility */
+        .mcq-options,
+        .tfng-statements {
+            margin: 12px 0;
+        }
+
+        .option,
+        .tfng-item {
+            margin: 8px 0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .option input[type="radio"],
+        .option input[type="checkbox"],
+        .tfng-item input[type="radio"] {
+            cursor: pointer;
+            accent-color: #0078d4;
+        }
+
+        .option input:disabled,
+        .tfng-item input:disabled {
+            cursor: not-allowed;
+            opacity: 1;
+        }
+
+        .option label,
+        .tfng-item label {
+            cursor: pointer;
+            flex: 1;
+        }
+
+        .option input:disabled ~ label,
+        .tfng-item input:disabled ~ label {
+            color: #666;
+        }
+
+        /* Grading panel */
+        .grading-panel {
+            background: #fff;
+            border-radius: 10px;
+            border: 1px solid #eee;
+            padding: 16px;
+            height: fit-content;
+            position: sticky;
+            top: 20px;
+        }
+
+        .grading-panel h3 {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 16px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid #e8e8e8;
+        }
+
+        .grading-section {
+            margin-bottom: 16px;
+        }
+
+        .grading-section label {
+            display: block;
+            font-size: 12px;
+            font-weight: 500;
+            color: #666;
+            margin-bottom: 6px;
+        }
+
+        .grading-section select,
+        .grading-section input {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #d0d0d0;
+            border-radius: 6px;
+            font-size: 14px;
+            font-family: inherit;
+        }
+
+        .grading-section select:focus,
+        .grading-section input:focus {
+            outline: none;
+            border-color: #0078d4;
+            box-shadow: 0 0 0 2px rgba(0, 120, 212, 0.1);
+        }
+
+        .auto-score-result {
+            background: #f0f4f9;
+            padding: 12px;
+            border-radius: 6px;
+            font-size: 13px;
+            margin: 12px 0;
+            display: none;
+        }
+
+        .auto-score-result.show {
+            display: block;
+        }
+
+        .auto-score-result strong {
+            color: #0078d4;
+        }
+
+        .grading-button {
+            width: 100%;
+            padding: 10px;
+            background: #0078d4;
+            color: #fff;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            margin-top: 12px;
+            transition: background 0.2s;
+        }
+
+        .grading-button:hover {
+            background: #005a9e;
+        }
+
+        .grading-button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+
+        .error {
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            padding: 16px;
+            border-radius: 6px;
+            color: #856404;
+            margin: 20px 0;
+        }
+
+
+        .candidate-info {
+            grid-column: 1 / -1;
+            background: #fff;
+            padding: 12px 16px;          /* tighter */
+            border-radius: 10px;
+            border: 1px solid #e0e0e0;
+            margin-bottom: 10px;
+        }
+
+        .candidate-info h2 {
+            font-size: 15px;
+            font-weight: 600;
+            margin-bottom: 8px;          /* tighter */
+            color: #333;
+        }
+
+        .candidate-details {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); /* more compact */
+            gap: 10px;
+        }
+
+        .candidate-detail-label { font-size: 11px; }
+        .candidate-detail-value { font-size: 13px; }
+
+        .candidate-detail-item {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .candidate-detail-label {
+            font-size: 12px;
+            color: #666;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .candidate-detail-value {
+            font-size: 14px;
+            color: #333;
+            font-weight: 400;
+        }
+
+        /* Gap Fill Visual Styles */
+        .gap-visual-block {
+            margin: 20px 0;
+        }
+
+        .map-stage {
+            display: flex;
+            justify-content: center;
+            margin-top: 16px;
+        }
+
+        .map-container {
+            position: relative;
+            display: inline-block;
+            max-width: 100%;
+        }
+
+        .map-img {
+            display: block;
+            max-width: 100%;
+            height: auto;
+        }
+
+        .map-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+
+        .text-layer,
+        .gap-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        .gap-layer {
+            pointer-events: auto;
+        }
+
+        .map-gap-box {
+            position: absolute;
+            box-sizing: border-box;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0;
+            background: rgba(255, 255, 255, 0.9);
+            border: 2px solid #0078d4;
+            border-radius: 4px;
+        }
+
+        .map-gap-box .gap-number {
+            position: absolute;
+            left: 6px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-weight: 700;
+            color: #666;
+            pointer-events: none;
+        }
+
+        .map-gap-box .map-input {
+            box-sizing: border-box;
+            width: 100%;
+            height: 100%;
+            border: none;
+            background: transparent;
+            text-align: left;
+            outline: none;
+            padding: 2px 22px 2px 22px;
+        }
+
+        .map-gap-box .answer-icon {
+            position: absolute;
+            right: 6px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-weight: 700;
+        }
+
+        .map-text-label {
+            position: absolute;
+            display: flex;
+            align-items: center;
+            pointer-events: none;
+        }
+
+        /* Matching Visual - Answer Area (row layout) */
+        .mv-answer-area { margin-top: 16px; }
+        .mv-answer-title { font-weight: 700; margin-bottom: 10px; }
+        .mv-answer-list { display: flex; flex-direction: column; gap: 10px; }
+        .mv-answer-row {
+            display: grid;
+            grid-template-columns: 80px 1fr 1fr;
+            gap: 12px;
+            padding: 10px;
+            border-radius: 8px;
+            border: 1px solid #e5e7eb;
+            align-items: start;
+        }
+        .mv-row-correct { background:#f0fdf4; border-color:#16a34a; }
+        .mv-row-wrong   { background:#fef2f2; border-color:#dc2626; }
+        .mv-row-blank   { background:#f8fafc; border-color:#cbd5e1; }
+
+        .mv-pill {
+            padding: 8px 10px;
+            border-radius: 6px;
+            border: 1px solid #e5e7eb;
+            background: #fff;
+            overflow-wrap: anywhere;
+            word-break: break-word;
+        }
+        .mv-pill-correct { background:#dcfce7; border-color:#16a34a; color:#16a34a; font-weight:600; }
+        .mv-pill-wrong   { background:#fee2e2; border-color:#dc2626; color:#dc2626; font-weight:600; text-decoration: line-through; }
+        .mv-pill-blank   { background:#f3f4f6; border-style:dashed; color:#64748b; }
+
+        /* Matching Visual Styles */
+        .matching-canvas-task {
+            margin: 20px 0;
+        }
+
+        .mc-layout {
+            display: flex;
+            gap: 20px;
+            margin-top: 16px;
+        }
+
+        .mc-canvas-side {
+            flex: 1;
+        }
+
+        .mc-bank-side {
+            width: 280px;
+            flex-shrink: 0;
+        }
+
+        .mc-card {
+            background: #fff;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 16px;
+        }
+
+        .mc-img-container {
+            position: relative;
+            margin: 0 auto;
+        }
+
+        .mc-img {
+            display: block;
+            max-width: 100%;
+            height: auto;
+        }
+
+        .mc-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+
+        .mc-zone {
+            position: absolute;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            pointer-events: auto;
+        }
+
+        .mc-zone--gap {
+            border: 2px solid #0078d4;
+            border-radius: 4px;
+            background: rgba(255, 255, 255, 0.7);
+        }
+
+        .mc-zone--static {
+            pointer-events: none;
+        }
+
+        .mc-zone-num {
+            font-weight: 600;
+            color: #666;
+            font-size: 18px;
+        }
+
+        .mc-placed-pill {
+            background: #e0f2fe;
+            border: 1px solid #0ea5e9;
+            border-radius: 4px;
+            padding: 4px 8px;
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            max-width: 90%;
+        }
+
+        .mc-clr {
+            background: #ef4444;
+            color: #fff;
+            border: none;
+            border-radius: 50%;
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+            font-size: 12px;
+            line-height: 1;
+            padding: 0;
+        }
+
+        .mc-bank-title {
+            font-weight: 600;
+            margin-bottom: 12px;
+            color: #333;
+        }
+
+        .mc-bank {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .mc-pill {
+            background: #f0f9ff;
+            border: 1px solid #0ea5e9;
+            border-radius: 6px;
+            padding: 8px 12px;
+            font-size: 13px;
+            user-select: none;
+            transition: all 0.2s;
+        }
+
+        .mc-pill.used {
+            opacity: 0.4;
+            border-color: #cbd5e1;
+        }
+
+        @media (max-width: 768px) {
+            .mc-layout {
+                flex-direction: column;
+            }
+
+            .mc-bank-side {
+                width: 100%;
+            }
+        }
+
+        /* TFNG Block Styles */
+        .tfng-block {
+            margin: 20px 0;
+        }
+
+        .tfng-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-top: 16px;
+        }
+
+        .tfng-row {
+            display: flex;
+            gap: 16px;
+            padding: 12px;
+            background: #fff;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            align-items: center;
+        }
+
+        .tfng-statement {
+            flex: 1;
+            color: #333;
+            line-height: 1.6;
+        }
+
+        .tfng-q-num {
+            font-weight: 600;
+            color: #64748b;
+            margin-right: 8px;
+        }
+
+        .tfng-options-group {
+            display: flex;
+            gap: 8px;
+            flex-shrink: 0;
+        }
+
+        .tfng-option-label {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 12px;
+            background: #f8fafc;
+            border: 1px solid #cbd5e1;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s;
+            user-select: none;
+        }
+
+        .tfng-option-label:has(input:checked) {
+            background: #dbeafe;
+            border-color: #3b82f6;
+        }
+
+        .tfng-option-input {
+            margin: 0;
+        }
+
+        .tfng-option-text {
+            font-size: 13px;
+            font-weight: 500;
+            color: #475569;
+        }
+
+        @media (max-width: 768px) {
+            .tfng-row {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .tfng-options-group {
+                width: 100%;
+                flex-wrap: wrap;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Examiner - Attempt View</h1>
+        <div class="header-buttons">
+            <button onclick="goBack()">← Back to Inbox</button>
+            <button class="primary" onclick="markInReview()">Mark as In Review</button>
+            <button onclick="window.print()">🖨️ Print</button>
+        </div>
+    </div>
+
+    <div class="app-shell">
+        <div class="candidate-info" id="candidateInfo" style="display:none;">
+            <h2>Candidate Information</h2>
+            <div class="candidate-details">
+                <div class="candidate-detail-item">
+                    <span class="candidate-detail-label">Candidate Name</span>
+                    <span class="candidate-detail-value" id="candidateName">-</span>
+                </div>
+                <div class="candidate-detail-item">
+                    <span class="candidate-detail-label">Candidate ID</span>
+                    <span class="candidate-detail-value" id="candidateId">-</span>
+                </div>
+                <div class="candidate-detail-item">
+                    <span class="candidate-detail-label">Exam ID</span>
+                    <span class="candidate-detail-value" id="examId">-</span>
+                </div>
+                <div class="candidate-detail-item">
+                    <span class="candidate-detail-label">Status</span>
+                    <span class="candidate-detail-value" id="attemptStatus">-</span>
+                </div>
+                <div class="candidate-detail-item">
+                    <span class="candidate-detail-label">Submitted At</span>
+                    <span class="candidate-detail-value" id="submittedAt">-</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="candidate-info" id="testInfo" style="display:none;">
+            <h2>Test Information</h2>
+            <div class="candidate-details">
+                <div class="candidate-detail-item">
+                    <span class="candidate-detail-label">Test Name</span>
+                    <span class="candidate-detail-value" id="testName">-</span>
+                </div>
+                <div class="candidate-detail-item">
+                    <span class="candidate-detail-label">Test ID</span>
+                    <span class="candidate-detail-value" id="testId">-</span>
+                </div>
+                <div class="candidate-detail-item">
+                    <span class="candidate-detail-label">Skill</span>
+                    <span class="candidate-detail-value" id="testSkill">-</span>
+                </div>
+                <div class="candidate-detail-item">
+                    <span class="candidate-detail-label">Duration</span>
+                    <span class="candidate-detail-value" id="testDuration">-</span>
+                </div>
+                <div class="candidate-detail-item">
+                    <span class="candidate-detail-label">Sections</span>
+                    <span class="candidate-detail-value" id="testSections">-</span>
+                </div>
+            </div>
+        </div>
+        <div class="main-content">
+            <div id="loading" class="loading">Loading attempt...</div>
+            <div id="error" class="error" style="display:none;"></div>
+            <div id="content" style="display:none;">
+                <div class="attempt-main">
+                    <div class="candidate-like">
+                        <div id="blocks" class="blocks-container"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="grading-panel">
+            <h3>Auto-Scoring</h3>
+            <div class="grading-section">
+                <label>Skill</label>
+                <select id="skillSelect">
+                    <option value="">Select a skill...</option>
+                    <option value="listening">Listening</option>
+                    <option value="reading">Reading</option>
+                </select>
+            </div>
+            <button class="grading-button" onclick="runAutoScore()">Run Auto-Score</button>
+            <div id="autoScoreResult" class="auto-score-result"></div>
+        </div>
+    </div>
+
+    <script type="module">
+                // Render writing answers as HTML
+                function renderWritingAnswersHtml(writingMap, testSections) {
+                    if (!writingMap || typeof writingMap !== 'object') {
+                        return `<div style="padding:12px;color:#666;"><em>No writing submissions found.</em></div>`;
+                    }
+
+                    const entries = Object.entries(writingMap).sort(([a],[b]) => {
+                        const ax = (a.match(/:T(\d+)/i) || [0, 999])[1];
+                        const bx = (b.match(/:T(\d+)/i) || [0, 999])[1];
+                        return Number(ax) - Number(bx);
+                    });
+
+                    const getSectionByTaskNum = (n) => {
+                        const arr = Array.isArray(testSections) ? testSections : [];
+                        return arr[n - 1] || null; // T1 -> index 0, T2 -> index 1
+                    };
+
+                    const rows = entries.map(([k, v]) => {
+                        const taskNum = Number((k.match(/:T(\d+)/i) || [0, 0])[1]) || 0;
+                        const sec = getSectionByTaskNum(taskNum);
+
+                        const title = sec?.title?.trim() ? sec.title.trim() : (taskNum ? `Task ${taskNum}` : k);
+                        const instructionsText = sec?.instructionsText || '';
+                        const promptHtml =
+                            sec?.promptHtml ||
+                            (sec?.instructions && String(sec.instructions).includes('<') ? sec.instructions : '');
+
+                        return `
+                            <div class="writing-task">
+                                <div class="writing-task-title">${escapeHtml(title)}</div>
+
+                                <div class="writing-prompt">
+                                    ${instructionsText ? `<div class="writing-instructions">${escapeHtml(instructionsText)}</div>` : ''}
+                                    ${promptHtml ? `<div class="writing-prompt-body">${promptHtml}</div>` : `<div style="color:#64748b;"><em>No prompt found.</em></div>`}
+                                </div>
+
+                                <div class="writing-response">${escapeHtml(v || '')}</div>
+                            </div>
+                        `;
+                    }).join('');
+
+                    return `<div class="writing-submissions">${rows}</div>`;
+                }
+
+        import { getAttemptById, listAttempts, updateAttempt, saveAutoScore } from '../../db/db.attempts.js';
+        import { DB as TESTS_DB } from '../../db/db.tests.js';
+        import { renderBlock, createReadOnlyContext } from '../../candidate/blocks/index.js';
+        import { computeAutoScore } from '../../examiner/logic/examiner.grade.js';
+        import '../../examiner/logic/examiner.enhancements.gapfill.js';
+        import '../../examiner/logic/examiner.enhancements.gapfillvisual.js';
+        import '../../examiner/logic/examiner.enhancements.tfng.js';
+        import '../../examiner/logic/examiner.enhancements.mcq.js';
+        import '../../examiner/logic/examiner.enhancements.matching.js';
+        import '../../examiner/logic/examiner.enhancements.matchingvisual.js';
+        import '../../examiner/logic/examiner.enhancements.matchingheadings.js';
+
+        let currentAttempt = null;
+        let attemptId = null;
+        let selectedSkill = null;
+        let currentTest = null;
+        
+                // Normalizes attempt.skills from top-level fields if needed
+                function normalizeAttemptSkills(attempt) {
+                    if (!attempt || typeof attempt !== 'object') return attempt;
+        
+                    // If already normalized, keep it
+                    if (attempt.skills && typeof attempt.skills === 'object') return attempt;
+        
+                    const skills = {};
+                    ['listening', 'reading', 'writing', 'speaking'].forEach(k => {
+                        // Your Firestore screenshot shows these skill objects live at the root
+                        if (attempt[k] && typeof attempt[k] === 'object') {
+                            skills[k] = attempt[k];
+                        }
+                    });
+        
+                    attempt.skills = skills;
+                    return attempt;
+                }
+
+        // Use global escapeHtml if available, else fallback
+        function escapeHtml(text) {
+            if (typeof window !== 'undefined' && typeof window.escapeHtml === 'function') {
+                return window.escapeHtml(text);
+            }
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+
+
+
+
+        // Get attemptId from URL
+        function getAttemptIdFromUrl() {
+            const params = new URLSearchParams(window.location.search);
+            return params.get('attemptId') || params.get('id');
+        }
+
+        // Get skill from URL
+        function getSkillFromUrl() {
+            const params = new URLSearchParams(window.location.search);
+            return params.get('skill');
+        }
+
+        // Initialize
+        async function init() {
+            attemptId = getAttemptIdFromUrl();
+            selectedSkill = getSkillFromUrl();
+            
+            if (!attemptId) {
+                showError('No attempt ID provided');
+                return;
+            }
+
+            try {
+                currentAttempt = await getAttemptById(attemptId);
+                    currentAttempt = normalizeAttemptSkills(currentAttempt);
+                    currentAttempt.autoScore = currentAttempt.autoScore || currentAttempt.grading?.auto || {};
+                if (!currentAttempt) {
+                    showError('Attempt not found');
+                    return;
+                }
+
+                renderCandidateInfo();
+                                await loadAndRenderTestInfo();
+
+                                // Hide Auto-Scoring panel for manual-only skills (Writing)
+                                if ((selectedSkill || '').toLowerCase() === 'writing' || (currentTest?.skill || '').toLowerCase() === 'writing') {
+                                    const panel = document.querySelector('.grading-panel');
+                                    if (panel) panel.style.display = 'none';
+                                }
+                await renderAttempt();
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('content').style.display = 'block';
+            } catch (error) {
+                showError(`Failed to load attempt: ${error.message}`);
+            }
+        }
+
+        function showError(msg) {
+            document.getElementById('loading').style.display = 'none';
+            const errorEl = document.getElementById('error');
+            errorEl.textContent = msg;
+            errorEl.style.display = 'block';
+        }
+
+        // Render candidate information
+        function renderCandidateInfo() {
+            if (!currentAttempt) return;
+
+            document.getElementById('candidateName').textContent = currentAttempt.candidateName || '-';
+            document.getElementById('candidateId').textContent = currentAttempt.candidateId || '-';
+            document.getElementById('examId').textContent = currentAttempt.examId || '-';
+            document.getElementById('attemptStatus').textContent = currentAttempt.status || '-';
+            
+            // Format submitted timestamp
+            if (currentAttempt.submittedAt) {
+                const date = currentAttempt.submittedAt.toDate ? currentAttempt.submittedAt.toDate() : new Date(currentAttempt.submittedAt);
+                document.getElementById('submittedAt').textContent = date.toLocaleString();
+            } else {
+                document.getElementById('submittedAt').textContent = '-';
+            }
+
+            document.getElementById('candidateInfo').style.display = 'block';
+        }
+
+        // Load and render test information
+        async function loadAndRenderTestInfo() {
+            if (!currentAttempt || !currentAttempt.skills) return;
+
+            // Get test ID from the first available skill or selected skill
+            let testId = null;
+            if (selectedSkill && currentAttempt.skills[selectedSkill]) {
+                testId = currentAttempt.skills[selectedSkill].testId;
+            } else {
+                // Get from first available skill
+                const skills = Object.keys(currentAttempt.skills);
+                if (skills.length > 0) {
+                    testId = currentAttempt.skills[skills[0]].testId;
+                }
+            }
+
+            if (!testId) return;
+
+            try {
+                currentTest = await TESTS_DB.loadTest(testId);
+                if (!currentTest) return;
+
+                document.getElementById('testName').textContent = currentTest.name || currentTest.title || '-';
+                document.getElementById('testId').textContent = currentTest.id || '-';
+                document.getElementById('testSkill').textContent = currentTest.skill || '-';
+                document.getElementById('testDuration').textContent = currentTest.totalTimeMin ? `${currentTest.totalTimeMin} min` : '-';
+                document.getElementById('testSections').textContent = currentTest.sections ? currentTest.sections.length : (currentTest.totalSections || '-');
+
+                document.getElementById('testInfo').style.display = 'block';
+            } catch (error) {
+                console.error('Failed to load test info:', error);
+            }
+        }
+
+        // Render examiner-specific matching_headings compact UI
+        function renderExaminerMatchingHeadings(block, skill, answers) {
+            const data = block.data || {};
+            const slots = data.slots || [];
+            const options = data.options || [];
+            const answerKey = data.answerKey || {};
+            
+            // Get saved matches for this block
+            const skillLower = (skill || '').toLowerCase();
+            const savedMatches = answers.matching?.[block.id] || {};
+            
+            let html = `<div class="matching-examiner-view" style="margin-top: 12px;">`;
+            
+            if (slots.length === 0) {
+                html += `<div style="color: #999; font-style: italic; padding: 16px; text-align: center;">No slots defined.</div>`;
+                html += `</div>`;
+                return html;
+            }
+            
+            // Header
+            html += `<div style="font-weight: 600; color: #333; margin-bottom: 12px; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px;">Matching Review</div>`;
+            
+            // Slots loop
+            html += `<div style="display: flex; flex-direction: column; gap: 12px;">`;
+            
+            for (const slot of slots) {
+                const slotId = slot.slotId || slot.id;
+                const slotLabel = slot.label || slotId;
+                const candidateLetter = savedMatches[slotId];
+                const correctLetter = answerKey[slotId];
+                const isCorrect = candidateLetter && candidateLetter === correctLetter;
+                
+                // Build candidate pill
+                let candidatePill = '—';
+                if (candidateLetter) {
+                    const optIdx = candidateLetter.charCodeAt(0) - 65;
+                    let text = '';
+                    if (optIdx >= 0 && optIdx < options.length) {
+                        const opt = options[optIdx];
+                        text = `${candidateLetter}. ${opt.text || ''}`;
+                    } else {
+                        text = `${candidateLetter}. [Unknown]`;
+                    }
+                    const icon = isCorrect ? 'V' : 'X';
+                    candidatePill = `${icon} ${text}`;
+                }
+                
+                // Build correct pill
+                let correctPill = '—';
+                if (correctLetter) {
+                    const optIdx = correctLetter.charCodeAt(0) - 65;
+                    if (optIdx >= 0 && optIdx < options.length) {
+                        const opt = options[optIdx];
+                        correctPill = `${correctLetter}. ${opt.text || ''}`;
+                    } else {
+                        correctPill = `${correctLetter}. [Unknown]`;
+                    }
+                }
+                
+                // Determine match status
+                const statusColor = !candidateLetter ? '#999' : isCorrect ? '#16a34a' : '#dc2626';
+                const statusBg = !candidateLetter ? '#f3f4f6' : isCorrect ? '#dcfce7' : '#fee2e2';
+                
+                html += `
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; padding: 12px; background: #fff; border: 1px solid #e5e7eb; border-radius: 6px; align-items: center;">
+                        <div>
+                            <div style="font-size: 12px; color: #666; font-weight: 500; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px;">Slot: ${escapeHtml(slotLabel)}</div>
+                            <div style="padding: 8px 12px; background: ${statusBg}; border: 2px dashed ${statusColor}; border-radius: 4px; font-size: 13px; color: ${statusColor}; font-weight: 500; min-height: 20px;">
+                                ${escapeHtml(candidatePill)}
+                            </div>
+                        </div>
+                        <div>
+                            <div style="font-size: 12px; color: #666; font-weight: 500; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px;">Correct</div>
+                            <div style="padding: 8px 12px; background: #dcfce7; border: 1px solid #16a34a; border-radius: 4px; font-size: 13px; color: #16a34a; font-weight: 500;">
+                                ${escapeHtml(correctPill)}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            html += `</div>`;
+            html += `</div>`;
+            return html;
+        }
+
+        // Render attempt with all blocks using candidate block renderers
+        async function renderAttempt() {
+            const blocksContainer = document.getElementById('blocks');
+            blocksContainer.innerHTML = '';
+
+            // Filter to only the selected skill if provided
+            let skills = Object.keys(currentAttempt.skills || {});
+            if (selectedSkill) {
+                skills = skills.filter(s => s.toLowerCase() === selectedSkill.toLowerCase());
+            }
+
+            for (const skill of skills) {
+                const skillData = currentAttempt.skills[skill];
+                const blocks = await getBlocksForSkill(skill, skillData);
+                const answers = skillData.answers || {};
+
+                // Special-case writing: render all writing answers in one block
+                                if (skill.toLowerCase() === 'writing') {
+                                    const wrapper = document.createElement('div');
+                                    wrapper.className = 'block-wrapper';
+                                    const writingSections = Array.isArray(currentTest?.data)
+                                        ? currentTest.data
+                                        : (Array.isArray(currentTest?.sections) ? currentTest.sections : []);
+                                    wrapper.innerHTML =
+                                        `<div class="block-grading-badge manual"><span>Writing (manual grading)</span></div>` +
+                                        renderWritingAnswersHtml(answers.writing, writingSections);
+                                    blocksContainer.appendChild(wrapper);
+                                    continue;
+                                }
+
+                // Get auto-score data for this skill if available
+                const autoScoreData = currentAttempt.autoScore?.[skill] || currentAttempt.grading?.auto?.[skill];
+
+                for (const block of blocks) {
+                    try {
+                        const wrapper = document.createElement('div');
+                        wrapper.className = 'block-wrapper';
+                        
+                        // Determine if block is auto-scorable
+                        const isAutoScorable = canAutoScore(block);
+                        
+                        // Find block score if auto-score was run
+                        const blockScore = autoScoreData?.byBlock?.find(b => 
+                            b.blockId === (block.data?.id || block.id) || b.blockId === block.id || b.label === getBlockLabel(block)
+                        );
+                        
+                        // Add grading indicator at the top
+                        const indicator = createGradingIndicator(isAutoScorable, blockScore);
+                        
+                        // Check for examiner-specific matching_headings rendering
+                        let blockHtml = '';
+                        if (block.type && block.type.toLowerCase() === 'matching_headings') {
+                            blockHtml = renderExaminerMatchingHeadings(block, skill, answers);
+                        } else {
+                            // Use candidate block renderer with read-only context
+                            const ctx = createReadOnlyContext(skill, block, answers);
+                            blockHtml = await renderBlock(block, ctx);
+                        }
+                        
+                        // Enhance with correct answers for certain block types
+                        const blockType = block.type ? block.type.toLowerCase() : '';
+                        
+                        if (blockType === 'tfng') {
+                            blockHtml = enhanceTfngWithCorrectAnswers(blockHtml, block, answers);
+                        } else if (blockType === 'mcq_set') {
+                            // MCQ: no additional enhancement, use base renderer output
+                        } else if (blockType === 'gap_fill') {
+                            blockHtml = window.enhanceGapFillWithCorrectAnswers(blockHtml, block, answers);
+                        } else if (blockType === 'gap_fill_visual') {
+                            blockHtml = window.enhanceGapFillVisualWithCorrectAnswers(blockHtml, block, answers);
+                        } else if (blockType === 'matching_visual') {
+                            blockHtml = window.enhanceMatchingVisualWithCorrectAnswers(blockHtml, block, answers);
+                            blockHtml += window.renderMatchingVisualAnswerArea(block, answers);
+                        }
+                        
+                        wrapper.innerHTML = indicator + blockHtml;
+                        
+                        // Apply color coding after DOM insertion
+                        if (blockType === 'tfng') {
+                            colorTfngAnswers(wrapper, block, answers);
+                        } else if (blockType === 'mcq_set') {
+                            window.colorMcqAnswers?.(wrapper, block, answers);
+                        } else if (blockType === 'matching') {
+                            enhanceMatchingShowCandidateAndCorrect(wrapper, block, answers);
+                        }
+                        
+                        // Disable inputs if auto-scored
+                        if (isAutoScorable) {
+                            wrapper.classList.add('auto-scored');
+                            // Disable all inputs within this block
+                            setTimeout(() => {
+                                wrapper.querySelectorAll('input:not([type="hidden"]), select, textarea').forEach(input => {
+                                    input.disabled = true;
+                                });
+                            }, 0);
+                        }
+                        
+                        blocksContainer.appendChild(wrapper);
+                    } catch (error) {
+                        console.error(`Failed to render block ${block.id}:`, error);
+                    }
+                }
+            }
+        }
+
+        // Determine if a block can be auto-scored
+        function canAutoScore(block) {
+            const autoScorableTypes = [
+                'gap_fill',
+                'gap_fill_visual',
+                'tfng',
+                'mcq_set',
+                'matching',
+                'matching_visual',
+                'matching_headings'
+            ];
+            return block && block.type && autoScorableTypes.includes(block.type.toLowerCase());
+        }
+
+        // Create grading indicator badge
+        function createGradingIndicator(isAutoScorable, blockScore) {
+            if (isAutoScorable) {
+                let html = `<div class="block-grading-badge auto">`;
+                html += `<svg fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>`;
+                html += `<span>Auto-scored</span>`;
+                html += `</div>`;
+                
+                // If we have score data, show it
+                if (blockScore) {
+                    html += `<div class="block-auto-score">`;
+                    html += `<div class="score-item">`;
+                    html += `<span class="score-label">Score:</span>`;
+                    html += `<span class="score-value">${(blockScore.correct ?? 0)}/${(blockScore.total ?? 0)}</span>`;
+                    html += `</div>`;
+                    const accuracy = blockScore.total > 0 ? Math.round((blockScore.correct / blockScore.total) * 100) : 0;
+                    html += `<div class="score-item">`;
+                    html += `<span class="score-label">Accuracy:</span>`;
+                    html += `<span class="score-value">${accuracy}%</span>`;
+                    html += `</div>`;
+                    html += `</div>`;
+                }
+                
+                return html;
+            } else {
+                let html = `<div class="block-grading-badge manual">`;
+                html += `<svg fill="currentColor" viewBox="0 0 20 20"><path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z"/></svg>`;
+                html += `<span>Examiner grading required</span>`;
+                html += `</div>`;
+                return html;
+            }
+        }
+
+        // Helper function to get block label
+        function getBlockLabel(block) {
+            const data = block.data || {};
+            return data.title || data.instructions || block.type || 'Untitled Block';
+        }
+
+        // Get blocks for a skill
+        async function getBlocksForSkill(skill, skillData) {
+            if (skillData.blocksSnapshot && Array.isArray(skillData.blocksSnapshot)) {
+                return skillData.blocksSnapshot;
+            }
+
+            if (skillData.testId) {
+                const test = await TESTS_DB.loadTest(skillData.testId);
+                if (test && test.sections) {
+                    return test.sections.flatMap(s => s.questions || s.blocks || []);
+                }
+            }
+
+            return [];
+        }
+
+        // Auto-score logic
+        window.runAutoScore = async function() {
+            const skill = document.getElementById('skillSelect').value;
+            if (!skill) {
+                alert('Please select a skill');
+                return;
+            }
+
+            if (!currentAttempt.skills[skill]) {
+                alert('Skill not found in attempt');
+                return;
+            }
+
+            try {
+                const skillData = currentAttempt.skills[skill];
+                const blocks = await getBlocksForSkill(skill, skillData);
+                const answers = skillData.answers || {};
+
+
+                                const scorePayload = await computeAutoScore({
+                                        skill,
+                                        blocks,
+                                        attempt: currentAttempt,
+                                        answers
+                                });
+
+                displayAutoScoreResult(scorePayload);
+                await saveAutoScore(attemptId, scorePayload);
+                
+                // Update current attempt with auto-score data
+                if (!currentAttempt.autoScore) currentAttempt.autoScore = {};
+                currentAttempt.autoScore[skill] = scorePayload;
+                if (!currentAttempt.grading) currentAttempt.grading = {};
+                if (!currentAttempt.grading.auto) currentAttempt.grading.auto = {};
+                currentAttempt.grading.auto[skill] = scorePayload;
+
+                if (!currentAttempt.grading) currentAttempt.grading = {};
+                if (!currentAttempt.grading.auto) currentAttempt.grading.auto = {};
+                currentAttempt.grading.auto[skill] = scorePayload;
+                
+                // Re-render to show block-level scores
+                await renderAttempt();
+            } catch (error) {
+                alert(`Auto-score failed: ${error.message}`);
+                console.error(error);
+            }
+        };
+
+        function displayAutoScoreResult(payload) {
+            const resultEl = document.getElementById('autoScoreResult');
+            const warnings = Array.isArray(payload.warnings) ? payload.warnings : [];
+            resultEl.innerHTML = `
+                <strong>Score:</strong> ${payload.correct || 0}/${payload.totalQuestions || 0}<br>
+                <strong>Accuracy:</strong> ${payload.accuracy || 0}%<br>
+                ${warnings.length ? `<div style="margin-top:8px;color:#b45309;"><strong>Warnings:</strong><ul style="margin:6px 0 0 18px;">${warnings.map(w=>`<li>${escapeHtml(String(w))}</li>`).join('')}</ul></div>` : ''}
+            `;
+            resultEl.classList.add('show');
+        }
+
+        // Header buttons
+        window.goBack = function() {
+            window.location.href = 'Examiner_Inbox.html';
+        };
+
+        window.markInReview = async function() {
+            try {
+                await updateAttempt(attemptId, { status: 'in_review' });
+                alert('Marked as In Review');
+            } catch (error) {
+                alert(`Failed to update status: ${error.message}`);
+            }
+        };
+
+        // Start
+        init();
+    </script>
+</body>
+</html>

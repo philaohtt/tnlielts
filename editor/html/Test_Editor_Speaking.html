@@ -1,0 +1,535 @@
+<!-- START OF FILE Test_Editor_Speaking.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Speaking Editor | IELTS Mock Test Admin</title>
+<style>
+:root {
+    --primary: #7e22ce; /* Purple-700 for Speaking */
+    --primary-hover: #6b21a8;
+    --bg: #faf5ff; /* Light Purple Tint */
+    --surface: #ffffff;
+    --text-main: #1a202c;
+    --text-muted: #64748b;
+    --border: #e2e8f0;
+    --radius: 12px;
+    --shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+    --font: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body { height: 100%; }
+
+body {
+    font-family: var(--font);
+    background-color: var(--bg);
+    color: var(--text-main);
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+/* --- Header --- */
+.top-header {
+    height: 52px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 16px;
+    z-index: 100;
+}
+
+.header-left { display: flex; align-items: center; gap: 12px; }
+.logo-box {
+    background: none;
+    width: auto;
+    height: auto;
+    padding: 0;
+    color: var(--primary);
+    font-weight: 800;
+    font-size: 16px;
+    cursor: pointer;
+    border-radius: 0;
+}
+.header-title { font-weight: 700; font-size: 18px; }
+.page-indicator { color: var(--text-muted); font-weight: 400; margin-left: 8px; border-left: 1px solid var(--border); padding-left: 12px; }
+
+.header-right { display: flex; align-items: center; gap: 16px; }
+
+.main-container {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+    min-height: 0;
+}
+
+.builder-view { 
+    display: flex; 
+    flex-direction: column; 
+    height: 100%; 
+    width: 100%;
+    min-height: 0; 
+}
+
+.builder-header {
+    background: var(--surface);
+    padding: 6px 12px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+.builder-header-info { display: flex; align-items: center; gap: 8px; }
+.editable-name { font-size: 16px; font-weight: 700; border: 1px solid transparent; padding: 3px 6px; border-radius: 4px; background: transparent; }
+    
+.badge { font-size: 9px; font-weight: 700; padding: 1px 6px; border-radius: 4px; text-transform: uppercase; line-height: 1; }
+.badge-speaking { background: #f3e8ff; color: #7e22ce; }
+
+.builder-actions { display: flex; gap: 12px; }
+
+.builder-content {
+    display: grid;
+    grid-template-columns: 240px 1fr;
+    flex: 1;
+    overflow: hidden;
+    justify-content: start;
+    height: 100%; 
+    min-height: 0;
+}
+
+/* --- Sidebar Timeline --- */
+.section-timeline {
+    background: #fff;
+    border-right: 1px solid var(--border);
+    padding: 20px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    overflow-y: auto; 
+    min-height: 0;
+}
+.timeline-item {
+    padding: 12px 10px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    cursor: pointer;
+    transition: 0.2s;
+    text-align: left;
+    background: #fff;
+}
+.timeline-item.active { border-color: var(--primary); background: #f3e8ff; }
+.timeline-label { font-weight: 800; font-size: 13px; margin-bottom: 4px; text-align: center; }
+.timeline-meta { font-size: 11px; color: var(--text-muted); text-align: center; }
+
+/* --- Workspace --- */
+.workspace {
+    background: var(--bg);
+    overflow: hidden;
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+}
+
+.section-editor {
+    flex: 1;
+    padding: 20px;
+    overflow-y: auto; 
+    height: 100%; 
+    min-height: 0;
+    max-width: 1000px; 
+    margin: 0; 
+    padding-left: 32px; 
+    padding-right: 32px; 
+    width: 100%;
+}
+
+.editor-card {
+    background: #fff;
+    border-radius: var(--radius);
+    padding: 20px;
+    border: 1px solid var(--border);
+    margin-bottom: 20px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+
+.field-group { margin-bottom: 16px; }
+.field-label { display: block; font-size: 13px; font-weight: 600; color: var(--text-muted); margin-bottom: 8px; }
+.input-text { width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border); font-size: 13px; font-family: var(--font); }
+.textarea { width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border); font-size: 14px; min-height: 300px; resize: vertical; line-height: 1.6; font-family: var(--font); }
+
+.btn {
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: 0.2s;
+    border: 1px solid transparent;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+.btn-sm { padding: 6px 12px; font-size: 13px; }
+.btn-primary { background: var(--primary); color: #fff; }
+.btn-primary:hover { background: var(--primary-hover); }
+.btn-primary-red { background: #d02331; color: #fff; border-color: transparent; }
+.btn-primary-red:hover { background: #a91a28; }
+
+.status-pill {
+    font-size: 11px;
+    font-weight: 700;
+    padding: 4px 8px;
+    border-radius: 999px;
+    text-transform: uppercase;
+    display: inline-block;
+    margin-left: 8px;
+}
+.status-draft { background: #f3f4f6; color: #374151; }
+.status-published { background: #dcfce7; color: #166534; }
+    
+.btn-outline { background: #fff; border: 1px solid var(--border); color: #475569; }
+.btn-outline:hover { background: #f8fafc; border-color: #cbd5e1; }
+
+.toast-container {
+    position: fixed; bottom: 24px; right: 24px;
+    display: flex; flex-direction: column; gap: 8px; z-index: 2000;
+}
+.toast {
+    background: #1e293b; color: #fff; padding: 12px 20px;
+    border-radius: 8px; font-size: 14px; box-shadow: var(--shadow);
+    animation: slideIn 0.3s ease-out;
+}
+@keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+.hidden { display: none !important; }
+.loading-overlay {
+    position: fixed; inset: 0; background: rgba(255,255,255,0.8); z-index: 500;
+    display: flex; align-items: center; justify-content: center; font-weight: 600; color: var(--primary);
+}
+</style>
+</head>
+<body>
+    <header class="top-header">
+        <div class="header-left">
+            <div class="logo-box" onclick="goDashboard()" title="Back to Dashboard">IELTS</div>
+            <div class="header-title">Speaking Editor <span class="page-indicator" id="headerTestName">...</span></div>
+        </div>
+        <div class="header-right">
+            <button class="btn btn-outline btn-sm" onclick="goDashboard()">Back to Dashboard</button>
+        </div>
+    </header>
+
+<main class="main-container">
+    <section class="workspace" id="workspace">
+        <div id="loadingOverlay" class="loading-overlay">Loading Test Data...</div>
+        
+        <div class="builder-view" id="builderView">
+            <div class="builder-header">
+                <div class="builder-header-info">
+                    <input type="text" class="editable-name" id="builderTestName" value="Loading..." readonly>
+                    <span class="badge badge-speaking">Speaking</span>
+                    <span id="statusPill" class="status-pill status-draft hidden">Draft</span>
+                </div>
+                <div class="builder-actions">
+                    <button class="btn btn-primary btn-sm" id="previewButton" onclick="previewTest()" disabled>Preview</button>
+                    <button class="btn btn-primary-red btn-sm hidden" id="publishButton" onclick="togglePublish()">Publish</button>
+                </div>
+            </div>
+
+            <div class="builder-content">
+                <!-- Sidebar -->
+                <div class="section-timeline" id="sectionTimeline"></div>
+
+                <!-- Main Editor -->
+                <div class="section-editor">
+                    <div id="editorContent" class="hidden">
+                        
+                        <div class="editor-card">
+                            <div class="field-group">
+                                <label class="field-label">Part Title</label>
+                                <input type="text" class="input-text" id="sectionTitle" placeholder="e.g. Part 1 - Introduction & Interview">
+                            </div>
+                        </div>
+
+                        <div class="editor-card">
+                            <div class="field-group">
+                                <label class="field-label">Examiner Script / Candidate Prompts</label>
+                                <textarea class="textarea" id="sectionInstructions" placeholder="Enter the examiner script, interview questions, or cue card details here..."></textarea>
+                                <div style="margin-top: 8px; font-size: 12px; color: var(--text-muted);">
+                                    This text is displayed to the candidate or examiner depending on the mode. No complex block logic is required for Speaking tests.
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+                    
+                    <div id="emptyState" class="hidden" style="text-align:center; padding: 40px; color: var(--text-muted);">
+                        Select a part from the sidebar to edit.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+</main>
+
+<div class="toast-container" id="toastContainer"></div>
+
+<script type="module">
+    import { DB } from "../../db/db.tests.js";
+
+// ============================================
+// STATE
+// ============================================
+
+    const CURRENT_SKILL = 'Speaking';
+    let currentTest = null;
+    let activeSectionIndex = 0;
+
+    const UI_STATE_KEY = (testId) => `speaking_editor_ui_state::${testId}`;
+
+// ============================================
+// UI
+// ============================================
+
+    function saveUiState(testId) {
+        if(!testId) return;
+        try {
+            const state = { activeSectionIndex };
+            sessionStorage.setItem(UI_STATE_KEY(testId), JSON.stringify(state));
+        } catch (e) { console.warn('saveUiState err', e); }
+    }
+
+    function restoreUiState(testId) {
+        try {
+            const raw = sessionStorage.getItem(UI_STATE_KEY(testId));
+            if (!raw) return;
+            const s = JSON.parse(raw);
+            if (typeof s.activeSectionIndex === 'number') activeSectionIndex = s.activeSectionIndex;
+        } catch (e) { console.warn('restoreUiState err', e); }
+    }
+
+// ============================================
+// EVENTS
+// ============================================
+
+    window.onload = async function() {
+        try {
+            const params = new URLSearchParams(window.location.search);
+            const testId = params.get('testId');
+
+            if (!testId) {
+                alert("No Test ID specified. Returning to dashboard.");
+                window.location.href = 'Test_Editor_Shell.html';
+                return;
+            }
+
+            restoreUiState(testId);
+            await loadTest(testId, { preserveActiveSection: true });
+
+        } catch (e) {
+            console.error("Init error", e);
+            showToast("Error connecting to database");
+        } finally {
+            document.getElementById('loadingOverlay').classList.add('hidden');
+        }
+    };
+
+    window.addEventListener('beforeunload', () => {
+        saveUiState(currentTest?.id);
+    });
+
+    window.goDashboard = function() { window.location.href = 'Test_Editor_Shell.html'; }
+
+    window.showToast = function(message) {
+        const container = document.getElementById('toastContainer');
+        const toast = document.createElement('div');
+        toast.className = 'toast';
+        toast.innerText = message;
+        container.appendChild(toast);
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            setTimeout(() => toast.remove(), 500);
+        }, 3000);
+    }
+
+// ============================================
+// DB
+// ============================================
+
+    window.loadTest = async function(id, opts = {}) {
+        try {
+            currentTest = await DB.loadTest(id);
+
+            if (currentTest.skill !== CURRENT_SKILL) {
+                console.warn(`Test ID ${id} is ${currentTest.skill}, but Editor is for ${CURRENT_SKILL}.`);
+            }
+
+            if (!opts.preserveActiveSection || typeof activeSectionIndex !== 'number') {
+                activeSectionIndex = 0;
+            }
+            if (!Array.isArray(currentTest.data) || currentTest.data.length === 0) {
+                activeSectionIndex = 0;
+            } else if (activeSectionIndex < 0 || activeSectionIndex >= currentTest.data.length) {
+                activeSectionIndex = 0;
+            }
+
+            document.getElementById('builderTestName').value = currentTest.name;
+            document.getElementById('headerTestName').innerText = currentTest.name;
+            document.getElementById('previewButton').disabled = false;
+
+            currentTest.status = currentTest.status || 'draft';
+            renderPublishButton();
+
+            renderTimeline();
+            renderSectionEditor();
+        } catch(e) {
+            console.error(e);
+            showToast("Failed to load test");
+        }
+    }
+
+    function renderTimeline() {
+        if (!currentTest) return;
+        const timeline = document.getElementById('sectionTimeline');
+        timeline.innerHTML = '';
+
+        const itemsHtml = (currentTest.data || []).map((sec, idx) => {
+            const title = (sec.title && sec.title.trim()) ? sec.title.trim() : `Part ${idx + 1}`;
+            // Speaking usually has 3 parts
+            const meta = idx === 0 ? "Introduction" : (idx === 1 ? "Long Turn" : "Discussion");
+            
+            return `
+                <div class="timeline-item ${activeSectionIndex === idx ? 'active' : ''}" onclick="switchSection(${idx})">
+                    <div class="timeline-label">${title}</div>
+                    <div class="timeline-meta">${meta}</div>
+                </div>
+            `;
+        }).join('');
+        timeline.innerHTML = itemsHtml;
+    }
+
+    function renderSectionEditor() {
+        if (!currentTest) return;
+        const section = currentTest.data[activeSectionIndex];
+        
+        const editorContent = document.getElementById('editorContent');
+        const emptyState = document.getElementById('emptyState');
+
+        if (!section) {
+            editorContent.classList.add('hidden');
+            emptyState.classList.remove('hidden');
+            return;
+        }
+
+        editorContent.classList.remove('hidden');
+        emptyState.classList.add('hidden');
+
+        // Populate fields
+        document.getElementById('sectionTitle').value = section.title || '';
+        document.getElementById('sectionInstructions').value = section.instructions || '';
+    }
+
+    window.switchSection = function(index) {
+        if (index === activeSectionIndex) return;
+        activeSectionIndex = index;
+        renderTimeline();
+        renderSectionEditor();
+        saveUiState(currentTest?.id);
+    }
+
+    // Save on Blur - Title
+    document.getElementById('sectionTitle')?.addEventListener('blur', async function() {
+        if (!currentTest) return;
+        const section = currentTest.data[activeSectionIndex];
+        if (section && section.title !== this.value) {
+            try {
+                await DB.updateSection(currentTest.id, section.id, { title: this.value });
+                section.title = this.value;
+                renderTimeline(); // Update sidebar label
+                saveUiState(currentTest.id);
+            } catch (err) { 
+                console.error(err); 
+                showToast("Failed to save title");
+            }
+        }
+    });
+
+    // Save on Blur - Instructions (Script)
+    document.getElementById('sectionInstructions')?.addEventListener('blur', async function() {
+        if (!currentTest) return;
+        const section = currentTest.data[activeSectionIndex];
+        if (section && section.instructions !== this.value) {
+            try {
+                await DB.updateSection(currentTest.id, section.id, { instructions: this.value });
+                section.instructions = this.value;
+                saveUiState(currentTest.id);
+            } catch (err) { 
+                console.error(err); 
+                showToast("Failed to save script");
+            }
+        }
+    });
+
+    window.previewTest = function() {
+        if (!currentTest) return;
+        window.open(`preview.html?testId=${currentTest.id}`, '_blank');
+    }
+
+    // --- Publishing Logic ---
+    function renderPublishButton() {
+        const publishButton = document.getElementById('publishButton');
+        const statusPill = document.getElementById('statusPill');
+
+        if (!currentTest || !publishButton || !statusPill) return;
+
+        const status = currentTest.status || 'draft';
+
+        if (status === 'published') {
+            publishButton.innerText = 'Unpublish';
+            publishButton.classList.remove('hidden');
+            statusPill.classList.remove('hidden');
+            statusPill.innerText = 'Published';
+            statusPill.classList.add('status-published');
+            statusPill.classList.remove('status-draft');
+        } else {
+            publishButton.innerText = 'Publish';
+            publishButton.classList.remove('hidden');
+            statusPill.classList.remove('hidden');
+            statusPill.innerText = 'Draft';
+            statusPill.classList.add('status-draft');
+            statusPill.classList.remove('status-published');
+        }
+    }
+
+    window.togglePublish = async function() {
+        if (!currentTest) return;
+        const testId = currentTest.id;
+        const isPublished = currentTest.status === 'published';
+
+        try {
+            if (isPublished) {
+                await DB.unpublishTest(testId);
+                currentTest.status = 'draft';
+                showToast('Test unpublished');
+            } else {
+                await DB.publishTest(testId);
+                currentTest.status = 'published';
+                showToast('Test published');
+            }
+            renderPublishButton();
+            saveUiState(currentTest.id);
+        } catch (err) {
+            console.error('togglePublish error', err);
+            showToast('Failed to update publish status');
+        }
+    };
+</script>
+</body>
+</html>

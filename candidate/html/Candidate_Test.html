@@ -1,0 +1,758 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <!-- Head content identical to original -->
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IELTS Candidate Test</title>
+    <style>
+        /* CSS identical to original */
+        :root {
+            --ielts-red: #d31145;
+            --ielts-black: #2d2d2d;
+            --bg-grey: #f2f2f2;
+            --border-grey: #cccccc;
+            --highlight-green: #009900;
+            --header-height: 70px;
+            --footer-height: 80px;
+            --banner-height: 50px;
+            --font-main: 'Segoe UI', Arial, sans-serif;
+        }
+
+        * { box-sizing: border-box; }
+        
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: var(--font-main);
+            background-color: #fff;
+            color: var(--ielts-black);
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* --- A) Fixed Header --- */
+        header {
+            height: var(--header-height);
+            background: #fff;
+            border-bottom: 1px solid var(--border-grey);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 20px;
+            flex-shrink: 0;
+            z-index: 10;
+        }
+
+        .header-left { display: flex; align-items: center; gap: 20px; }
+        .logo { font-weight: 800; font-size: 28px; color: var(--ielts-red); letter-spacing: -1px; }
+        .candidate-info { display: flex; flex-direction: column; }
+        .candidate-id { font-weight: 600; font-size: 14px; }
+        .system-status { font-size: 12px; color: #666; display: none; } /* Hidden by default */
+        
+        .header-right { display: flex; gap: 15px; }
+        .icon-btn { width: 24px; height: 24px; cursor: pointer; opacity: 0.7; }
+
+        /* --- Test Progress Bar --- */
+        #testProgressBar {
+            display: none;
+        }
+
+        .progress-skill {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+
+        .progress-skill-icon {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            font-weight: 700;
+            flex-shrink: 0;
+        }
+
+        /* Upcoming State */
+        .progress-skill.upcoming {
+            color: #94a3b8;
+        }
+        .progress-skill.upcoming .progress-skill-icon {
+            background: #e2e8f0;
+            color: #94a3b8;
+            border: 2px solid #cbd5e1;
+        }
+
+        /* Active State */
+        .progress-skill.active {
+            color: #1e40af;
+            background: #dbeafe;
+        }
+        .progress-skill.active .progress-skill-icon {
+            background: #3b82f6;
+            color: white;
+            border: 2px solid #2563eb;
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        /* Completed State */
+        .progress-skill.completed {
+            color: #15803d;
+        }
+        .progress-skill.completed .progress-skill-icon {
+            background: #22c55e;
+            color: white;
+            border: 2px solid #16a34a;
+        }
+
+        /* Arrow Separator */
+        .progress-arrow {
+            color: #cbd5e1;
+            font-size: 16px;
+            font-weight: 700;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+        
+        /* --- B) Main Test Layout --- */
+        #testLayout {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* C) Part Banner */
+        .part-banner {
+            min-height: var(--banner-height);
+            background-color: var(--bg-grey);
+            border-bottom: 1px solid var(--border-grey);
+            display: flex;
+            align-items: center;
+            padding: 8px 20px;
+            font-size: 14px;
+            flex-shrink: 0;
+            justify-content: space-between;
+        }
+        .banner-text { display: flex; flex-direction: column; gap: 2px; }
+        .banner-title { font-weight: 700; color: #000; display: flex; align-items: center; gap: 12px; }
+        .banner-candidate { font-weight: 600; color: #444; font-size: 13px; }
+        .banner-instruction { color: #555; }
+        
+        /* Timer Display */
+        .timer-display {
+            font-size: 20px;
+            font-weight: 700;
+            color: #333;
+            padding: 6px 16px;
+            background: white;
+            border: 2px solid #cbd5e1;
+            border-radius: 8px;
+            min-width: 120px;
+            text-align: center;
+            font-family: 'Courier New', monospace;
+        }
+        .timer-display.warning {
+            color: #f59e0b;
+            border-color: #f59e0b;
+            background: #fffbeb;
+        }
+        .timer-display.danger {
+            color: #dc2626;
+            border-color: #dc2626;
+            background: #fef2f2;
+        }
+
+        /* Workspace (Split Pane Area) */
+        #workspace {
+            flex: 1;
+            display: flex;
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* Panes */
+        .pane {
+            overflow-y: auto;
+            padding: 30px;
+            position: relative;
+        }
+
+        /* Left Pane (Passage / Prompt) */
+        #paneLeft {
+            width: 50%;
+            border-right: 1px solid var(--border-grey);
+            background: #fff;
+        }
+
+        /* Divider */
+        #divider {
+            width: 10px;
+            background: #e0e0e0;
+            cursor: col-resize;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            border-left: 1px solid #ccc;
+            border-right: 1px solid #ccc;
+            user-select: none;
+        }
+        #divider::after { content: '↔'; color: #666; font-size: 14px; }
+
+        /* Right Pane (Questions / Editor) */
+        #paneRight {
+            flex: 1;
+            background: #fff;
+        }
+
+        /* --- Mode Specific Layouts --- */
+        
+        /* Reading / Writing (Default Split) */
+        /* JS handles width, but CSS handles visibility of content */
+
+        /* Listening Mode: Hide Left Pane & Divider */
+        .mode-listening #paneLeft, 
+        .mode-listening #divider {
+            display: none !important; 
+        }
+        .mode-listening #paneRight {
+            width: 100% !important;
+            display: flex !important;
+            flex-direction: column !important;
+            align-items: stretch !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            text-align: left !important;
+        }
+        .mode-listening #questionsContent {
+            width: 100% !important;
+            padding: 30px !important;
+            margin: 0 !important;
+            max-width: none !important;
+            display: block !important;
+            text-align: left !important;
+        }
+        
+        /* Content Visibility Helpers */
+        .content-section { display: none; }
+        
+        /* Reading Mode Visible */
+        .mode-reading #passageContent { display: block; }
+        .mode-reading #questionsContent { display: block; }
+        
+        /* Passage Content - Normalize paragraph spacing */
+        #passageContent p {
+            margin: 0 0 0 0;
+            line-height: 1.4;
+        }
+        #passageContent p:last-child {
+            margin-bottom: 0;
+        }
+        
+        /* Writing Mode Visible */
+        .mode-writing #passageContent { display: block; }
+        .mode-writing #editorContent { display: block; }
+
+        /* Writing Task Styling */
+        .task-instructions {
+            background-color: #f5f5f5;
+            padding: 15px;
+            border-left: 4px solid #0066cc;
+            margin-bottom: 20px;
+            font-size: 14px;
+            color: #333;
+            line-height: 1.6;
+        }
+        
+        .task-prompt {
+            padding: 0;
+            margin: 0;
+            font-size: 15px;
+            line-height: 1.6;
+            color: #333;
+        }
+        
+        .task-prompt p {
+            margin: 12px 0;
+        }
+        
+        .task-prompt p:first-child {
+            margin-top: 0;
+        }
+        
+        .task-prompt p:last-child {
+            margin-bottom: 0;
+        }
+
+        /* Listening Mode Visible */
+        .mode-listening #questionsContent { display: block !important; }
+
+        /* --- Audio Gate Overlay (Listening) --- */
+        #audioGate {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(255,255,255,0.95);
+            z-index: 100;
+            display: none; /* Toggled by JS */
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+        }
+        .gate-icon { font-size: 48px; margin-bottom: 20px; color: #555; }
+        .gate-text { max-width: 500px; margin-bottom: 30px; line-height: 1.5; color: #333; }
+        .gate-btn {
+            padding: 10px 30px;
+            background: var(--ielts-red);
+            color: white;
+            border: none;
+            font-size: 16px;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+
+        /* --- Transition Screen --- */
+        #transitionScreen {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: #fff;
+            z-index: 90;
+            display: none; /* Toggled */
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        /* --- D) Navigation --- */
+
+        /* D1 Floating Buttons */
+        .float-nav {
+            position: absolute;
+            right: 20px;
+            top: 50%;
+            transform: translateY(-50%);
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            z-index: 20;
+        }
+        .nav-btn-square {
+            width: 40px;
+            height: 40px;
+            background: #fff;
+            border: 1px solid #999;
+            cursor: pointer;
+            font-weight: bold;
+            display: flex; align-items: center; justify-content: center;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .nav-btn-square:hover { background: #eee; }
+
+        /* D2 Fixed Footer */
+        footer {
+            min-height: var(--footer-height);
+            background: #e6e6e6;
+            border-top: 1px solid var(--border-grey);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 20px;
+            flex-shrink: 0;
+            z-index: 10;
+            gap: 20px;
+        }
+
+        .footer-progress {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            min-width: 0;
+        }
+
+        .part-row {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .part-pill {
+            background: transparent;
+            color: #333;
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-size: 12px;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            border-top: 3px solid transparent;
+        }
+
+        .part-pill.active { background: transparent; font-weight: 700; border-top-color: #2b6cb0; }
+
+        .part-count { font-weight: 600; color: #111; }
+
+        .question-row {
+            display: flex;
+            gap: 6px;
+            overflow-x: auto;
+            padding-bottom: 4px;
+            align-items: center;
+        }
+
+        .question-nav-btn {
+            background: transparent;
+            border: none;
+            color: #666;
+            font-size: 18px;
+            cursor: pointer;
+            padding: 4px 8px;
+            flex-shrink: 0;
+        }
+
+        .question-nav-btn:hover {
+            color: #333;
+        }
+
+        .question-num-btn {
+            background: #fff;
+            border: 1px solid #ddd;
+            color: #333;
+            padding: 6px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 500;
+            cursor: pointer;
+            flex-shrink: 0;
+            transition: all 0.2s;
+            position: relative;
+            border-bottom: 3px solid #999;
+        }
+
+        .question-num-btn:hover {
+            background: #f9f9f9;
+            border-top-color: #999;
+            border-left-color: #999;
+            border-right-color: #999;
+        }
+
+        .question-num-btn.active {
+            background: #fff;
+            color: #333;
+            border: 2px solid #0284c7;
+            border-bottom: 3px solid #0284c7;
+            padding: 5px 9px;
+            font-weight: 600;
+        }
+
+        .question-num-btn.has-answer {
+            border-bottom-color: #22c55e;
+        }
+
+        .question-num-btn.has-answer.active {
+            border-bottom-color: #22c55e;
+        }        .q-card {
+            min-width: 34px;
+            height: 34px;
+            background: #fff;
+            border: 1px solid #bbb;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            cursor: pointer;
+            position: relative;
+        }
+
+        .q-card.active {
+            border-color: #2b6cb0;
+            box-shadow: 0 0 0 1px #2b6cb0 inset;
+            color: #2b6cb0;
+            font-weight: 700;
+        }
+
+        .q-card::after {
+            content: '';
+            position: absolute;
+            left: 4px;
+            right: 4px;
+            bottom: 3px;
+            height: 3px;
+            border-radius: 2px;
+            background: #bdbdbd;
+        }
+
+        .q-card.answered::after { background: #2e7d32; }
+
+        .footer-actions { display: flex; gap: 10px; align-items: center; }
+
+        .check-icon-btn {
+            width: 48px;
+            height: 48px;
+            border-radius: 10px;
+            border: 2px solid #333;
+            background: #fff;
+            color: #2d2d2d;
+            font-size: 22px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+        }
+        .check-icon-btn:hover { background: #f3f3f3; }
+        .check-submit-wrap { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+        .check-submit-text { font-size: 12px; font-weight: 700; color: #333; }
+
+        /* --- Component Styles --- */
+
+        /* Question Styles */
+        .q-block { margin-bottom: 30px; padding: 15px; border: 1px solid transparent; }
+        .q-block:hover { border-color: #eee; }
+        .q-title { font-weight: bold; margin-bottom: 10px; display: block; }
+        .q-option { margin-bottom: 8px; display: flex; gap: 10px; align-items: center; }
+        .gap-input { border: 1px solid #ccc; padding: 4px; width: 150px; }
+
+        /* Writing Editor */
+        #editorContent { height: 100%; display: flex; flex-direction: column; }
+        #writingArea {
+            flex: 1;
+            width: 100%;
+            border: 1px solid #ccc;
+            padding: 15px;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 16px;
+            resize: none;
+            outline: none;
+        }
+        .editor-footer {
+            display: flex; justify-content: space-between; align-items: center;
+            padding-top: 10px;
+            font-size: 14px; color: #333;
+        }
+        .status-dot {
+            width: 10px; height: 10px; background-color: var(--highlight-green);
+            border-radius: 50%; opacity: 0; transition: opacity 0.2s;
+        }
+        .status-dot.visible { opacity: 1; }
+
+        /* Passage / Prompt Placeholders */
+        .passage-text p { line-height: 1.6; margin-bottom: 15px; }
+        .chart-placeholder {
+            width: 100%; height: 200px; background: #eee;
+            border: 2px dashed #ccc; display: flex; align-items: center; justify-content: center;
+            color: #888; margin-bottom: 20px;
+        }
+        /* Login / Confirmation Screen */
+        #loginContainer {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: #fff;
+            z-index: 200;
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 20px;
+        }
+        .login-form {
+            background: #fff;
+            border: 1px solid var(--border-grey);
+            padding: 40px;
+            border-radius: 8px;
+            width: 100%;
+            max-width: 500px;
+        }
+        .login-form h2 { margin-top: 0; color: var(--ielts-black); }
+        .login-form label { display: block; margin-bottom: 4px; font-weight: 600; font-size: 14px; }
+        .login-form input { width: 100%; padding: 8px; border: 1px solid var(--border-grey); border-radius: 4px; font-size: 14px; margin-bottom: 15px; }
+        .login-form input[type="checkbox"] { width: auto; margin-right: 8px; }
+        .login-form button { padding: 10px 20px; background: var(--ielts-red); color: white; border: none; cursor: pointer; border-radius: 4px; font-weight: 600; }
+        
+        /* Error Banner */
+        #errorBanner {
+            display: none;
+            background: #ffebee;
+            color: #c62828;
+            padding: 12px 16px;
+            border: 1px solid #ef5350;
+            border-radius: 4px;
+            margin-bottom: 16px;
+            font-size: 13px;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- A) Fixed Header -->
+    <header>
+        <div class="header-left">
+            <div class="logo">IELTS</div>
+            <div class="candidate-info">
+                <span id="hdr_candidateName" style="font-weight: 600; font-size: 14px;">-</span>
+                <span id="hdr_testerId">Test taker ID: -</span>
+                <span id="hdr_examTitle">Exam: -</span>
+            </div>
+        </div>
+        <div class="header-right">
+            <!-- Simple SVG Placeholders -->
+            <svg class="icon-btn" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M5 12.55a11 11 0 0 1 14.08 0"></path>
+                <path d="M1.42 9a16 16 0 0 1 21.16 0"></path>
+                <path d="M8.53 16.11a6 6 0 0 1 6.95 0"></path>
+                <line x1="12" y1="20" x2="12" y2="20"></line>
+            </svg> <!-- WiFi -->
+            <button id="btnQuit" style="background: none; border: none; cursor: pointer; font-size: 16px; padding: 0;">✕</button>
+        </div>
+    </header>
+
+    <!-- Login Modal -->
+    <div id="loginContainer">
+        <div class="login-form">
+            <h2>Test Login</h2>
+            <div id="errorBanner"></div>
+            <label for="testerIdInput">Tester ID:</label>
+            <input type="text" id="testerIdInput" placeholder="Enter your ID">
+            <label for="fullNameInput">Full Name:</label>
+            <input type="text" id="fullNameInput" placeholder="Enter your full name">
+            <label><input type="checkbox" id="confirmCheckbox"> I confirm my identity</label>
+            <button id="continueBtn" onclick="window.CANDIDATE_APP.handleCredentialsSubmit()">Continue to Test</button>
+        </div>
+    </div>
+
+    <!-- Test Progress Bar -->
+    <div id="testProgressBar">
+        <div class="progress-skill upcoming" data-skill="Listening">
+            <div class="progress-skill-icon">🎧</div>
+            <span>Listening</span>
+        </div>
+        <div class="progress-arrow">→</div>
+        <div class="progress-skill upcoming" data-skill="Reading">
+            <div class="progress-skill-icon">📖</div>
+            <span>Reading</span>
+        </div>
+        <div class="progress-arrow">→</div>
+        <div class="progress-skill upcoming" data-skill="Writing">
+            <div class="progress-skill-icon">✍️</div>
+            <span>Writing</span>
+        </div>
+        <div class="progress-arrow">→</div>
+        <div class="progress-skill upcoming" data-skill="Speaking">
+            <div class="progress-skill-icon">🎤</div>
+            <span>Speaking</span>
+        </div>
+    </div>
+
+    <!-- B) Main Test Area -->
+    <div id="testLayout">
+        
+        <!-- Part Banner -->
+        <div class="part-banner">
+            <div class="banner-text">
+                <div class="banner-title" id="partBannerTitle">
+                    <span>Loading...</span>
+                    <span class="banner-candidate" id="bannerCandidateName"></span>
+                            <div id="audioBarPlaceholder" style="display: none;"></div>
+                </div>
+            </div>
+            <div class="timer-display" id="timerDisplay" style="display: none;">--:--</div>
+        </div>
+
+        <!-- Main Content Panel -->
+        <div id="mainPanel" style="flex: 1; display: flex; flex-direction: column; overflow: hidden; position: relative;">
+            <!-- Listening Audio Gate (Modal) -->
+            <div id="audioGate">
+                <div class="gate-icon">🎧</div>
+                <div class="gate-text">
+                    <strong>You will be listening to an audio clip during this test.</strong><br>
+                    You will not be permitted to pause or rewind the audio while answering the questions.<br><br>
+                    To continue, click Play.
+                </div>
+                <button class="gate-btn" id="audioPlayBtn">▶ Play</button>
+            </div>
+
+            <!-- Workspace -->
+            <div id="workspace" style="flex: 1; overflow-y: auto; position: relative;">
+                <div id="paneLeft" class="pane">
+                    <div id="passageContent" class="content-section"></div>
+                </div>
+
+                <div id="divider"></div>
+
+                <div id="paneRight" class="pane">
+                    <!-- Questions Container (Reading & Listening) - INJECTION POINT -->
+                    <div id="questionsContent" style="padding: 30px; max-width: 100%; margin: 0 auto;">
+                        <!-- Block HTML will be injected here by candidate.app.js -->
+                    </div>
+
+                    <!-- Writing Editor (Writing Only) -->
+                    <div id="editorContent" style="display: none; padding: 30px; height: 100%; flex-direction: column;">
+                        <textarea id="answerTextarea" placeholder="Type your answer here..." style="flex: 1; width: 100%; border: 1px solid #ccc; padding: 15px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; font-size: 16px; line-height: 1.6; resize: none; outline: none;"></textarea>
+                        <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 10px; font-size: 14px; color: #333;">
+                            <span id="wordCountLabel">Words: 0</span>
+                            <div style="width: 10px; height: 10px; background-color: #009900; border-radius: 50%;"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+
+
+        <!-- Footer -->
+        <footer>
+            <div class="footer-progress" id="footerProgress">
+                <div class="part-row" id="partRow"></div>
+                <div class="question-row" id="questionRow"></div>
+            </div>
+            <div class="footer-actions">
+                <div class="check-submit-wrap">
+                    <button id="btnSubmit" class="check-icon-btn" title="Submit">✓</button>
+                    <div class="check-submit-text">Submit</div>
+                </div>
+            </div>
+        </footer>
+
+    </div>
+
+    <!-- Candidate Confirmation Display (Hidden by default) -->
+    <div id="confirmationDisplay" style="display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 40px; border: 1px solid var(--border-grey); border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.2); z-index: 300;">
+        <h2>Confirm Your Details</h2>
+        <p><strong>Name:</strong> <span id="disp_fullName">-</span></p>
+        <p><strong>Tester ID:</strong> <span id="disp_testerId">-</span></p>
+        <p><strong>Class:</strong> <span id="disp_className">-</span></p>
+        <p><strong>DOB:</strong> <span id="disp_dob">-</span></p>
+        <button id="confirmBtn" onclick="window.CANDIDATE_APP.handleConfirmEnter()" style="background: var(--ielts-red); color: white; border: none; padding: 10px 20px; cursor: pointer; border-radius: 4px; font-weight: 600;">Confirm & Start Test</button>
+    </div>
+
+    <!-- JS Logic -->
+    <script type="module">
+// ============================================
+// EVENTS
+// ============================================
+
+        import '../../candidate/app/candidate.main.js';
+        import '../../candidate/views/candidate.writing.view.js';
+        document.addEventListener('DOMContentLoaded', () => {
+            window.CANDIDATE_APP.initCandidateTestPage();
+        });
+    </script>
+</body>
+</html>

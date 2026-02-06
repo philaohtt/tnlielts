@@ -1,0 +1,976 @@
+<!-- START OF FILE Test_Editor_Reading.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Reading Editor | IELTS Mock Test Admin</title>
+<!-- Quill Rich Text Editor CDN -->
+<link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
+<script src="https://cdn.quilljs.com/1.3.6/quill.min.js"></script>
+<style>
+:root {
+--primary: #0369a1; /* Sky 700 - Distinct for Reading */
+--primary-hover: #075985;
+--bg: #f4f7fa;
+--surface: #ffffff;
+--text-main: #1a202c;
+--text-muted: #64748b;
+--border: #e2e8f0;
+--radius: 12px;
+--shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+--font: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body { height: 100%; }
+
+body {
+font-family: var(--font);
+background-color: var(--bg);
+color: var(--text-main);
+height: 100vh;
+display: flex;
+flex-direction: column;
+overflow: hidden;
+}
+
+/* --- Header --- */
+.top-header {
+height: 52px;
+background: var(--surface);
+border-bottom: 1px solid var(--border);
+display: flex;
+align-items: center;
+justify-content: space-between;
+padding: 0 16px;
+z-index: 100;
+}
+
+.header-left { display: flex; align-items: center; gap: 12px; }
+.logo-box {
+background: none;
+width: auto;
+height: auto;
+padding: 0;
+color: var(--primary);
+font-weight: 800;
+font-size: 16px;
+cursor: pointer;
+border-radius: 0;
+}
+.header-title { font-weight: 700; font-size: 18px; }
+.page-indicator { color: var(--text-muted); font-weight: 400; margin-left: 8px; border-left: 1px solid var(--border); padding-left: 12px; }
+
+.header-right { display: flex; align-items: center; gap: 16px; }
+
+.main-container {
+display: flex;
+flex: 1;
+overflow: hidden;
+min-height: 0;
+}
+
+.builder-view {
+display: flex;
+flex-direction: column;
+height: 100%;
+width: 100%;
+min-height: 0;
+}
+
+.builder-header {
+background: var(--surface);
+padding: 6px 12px;
+border-bottom: 1px solid var(--border);
+display: flex;
+align-items: center;
+justify-content: space-between;
+}
+.builder-header-info { display: flex; align-items: center; gap: 8px; }
+.editable-name { font-size: 16px; font-weight: 700; border: 1px solid transparent; padding: 3px 6px; border-radius: 4px; background: transparent; }
+
+.badge { font-size: 9px; font-weight: 700; padding: 1px 6px; border-radius: 4px; text-transform: uppercase; line-height: 1; }
+.badge-reading { background: #e0f2fe; color: #0369a1; }
+
+.builder-actions { display: flex; gap: 12px; }
+
+.builder-content {
+display: grid;
+grid-template-columns: 240px 1fr;
+flex: 1;
+overflow: hidden;
+justify-content: start;
+height: 100%;
+min-height: 0;
+}
+
+/* --- Sidebar Timeline --- */
+.section-timeline {
+background: #fff;
+border-right: 1px solid var(--border);
+padding: 20px 12px;
+display: flex;
+flex-direction: column;
+gap: 12px;
+overflow-y: auto;
+min-height: 0;
+}
+.timeline-item {
+padding: 8px 10px;
+border-radius: 6px;
+border: 1px solid var(--border);
+cursor: pointer;
+transition: 0.2s;
+text-align: left;
+}
+.timeline-item.active { border-color: var(--primary); background: #f0f9ff; }
+.timeline-label { font-weight: 800; font-size: 13px; margin-bottom: 4px; text-align: center; }
+.timeline-meta { font-size: 11px; color: var(--text-muted); text-align: center; }
+
+/* --- Workspace --- */
+.workspace {
+background: #f8fafc;
+overflow: hidden;
+flex: 1;
+min-height: 0;
+display: flex;
+flex-direction: column;
+position: relative;
+}
+
+.section-editor {
+flex: 1;
+padding: 20px;
+overflow-y: auto;
+height: 100%;
+min-height: 0;
+max-width: 1200px;
+margin: 0;
+padding-left: 24px;
+padding-right: 24px;
+width: 100%;
+}
+.editor-card {
+background: #fff;
+border-radius: var(--radius);
+padding: 16px;
+border: 1px solid var(--border);
+margin-bottom: 14px;
+box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+.field-group { margin-bottom: 12px; }
+.field-label { display: block; font-size: 13px; font-weight: 600; color: var(--text-muted); margin-bottom: 8px; }
+.input-text { width: 100%; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--border); font-size: 13px; }
+
+/* Rich Text Editor Styling */
+#passageEditorContainer {
+border: 1px solid var(--border);
+border-radius: 8px;
+overflow: hidden;
+display: flex;
+flex-direction: column;
+}
+#passageToolbar {
+border-bottom: 1px solid var(--border) !important;
+background: #f8fafc;
+}
+#passageEditor {
+min-height: 450px;
+font-size: 16px;
+line-height: 1.6;
+font-family: var(--font);
+}
+.ql-container.ql-snow { border: none !important; }
+
+.question-blocks-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; position: relative; }
+.no-questions { border: 1px solid #f1f5f9; background: #fcfcfc; border-radius: 8px; padding: 40px; text-align: center; color: var(--text-muted); font-size: 14px; }
+
+.block-list { display: flex; flex-direction: column; gap: 8px; }
+.block-item {
+background: #fff; border: 1px solid var(--border); border-radius: 8px;
+padding: 10px 12px;
+display: flex; justify-content: space-between; align-items: center;
+transition: 0.2s; box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+}
+.block-item:hover { border-color: #cbd5e1; }
+.block-info { display: flex; flex-direction: column; gap: 2px; }
+.block-type { font-weight: 700; font-size: 14px; color: var(--text-main); }
+.block-meta { font-size: 12px; color: var(--text-muted); }
+.block-actions { display: flex; align-items: center; gap: 4px; }
+
+.add-menu {
+position: absolute; right: 0; top: 100%; width: 200px;
+background: #fff; border: 1px solid var(--border); border-radius: 8px;
+box-shadow: var(--shadow); z-index: 50; display: none; flex-direction: column; padding: 4px;
+}
+.add-menu.show { display: flex; }
+.add-menu-item {
+padding: 10px 12px; font-size: 13px; font-weight: 500; color: var(--text-main);
+border-radius: 4px; cursor: pointer; display: flex; align-items: center; justify-content: space-between;
+}
+.add-menu-item:hover { background: #f1f5f9; }
+
+.btn {
+padding: 10px 20px;
+border-radius: 8px;
+font-size: 14px;
+font-weight: 600;
+cursor: pointer;
+transition: 0.2s;
+border: 1px solid transparent;
+display: inline-flex;
+align-items: center;
+gap: 8px;
+}
+.btn-sm { padding: 6px 12px; font-size: 13px; }
+.btn-primary { background: var(--primary); color: #fff; }
+.btn-primary:hover { background: var(--primary-hover); }
+.btn-primary-red { background: #d02331; color: #fff; border-color: transparent; }
+.btn-primary-red:hover { background: #a91a28; }
+
+.status-pill {
+font-size: 11px;
+font-weight: 700;
+padding: 4px 8px;
+border-radius: 999px;
+text-transform: uppercase;
+display: inline-block;
+margin-left: 8px;
+}
+.status-draft { background: #f3f4f6; color: #374151; }
+.status-published { background: #dcfce7; color: #166534; }
+
+.btn-outline { background: #fff; border: 1px solid var(--border); color: #475569; }
+.btn-outline:hover { background: #f8fafc; border-color: #cbd5e1; }
+
+.btn-icon {
+background: transparent; border: 1px solid transparent; color: var(--text-muted);
+width: 28px; height: 28px; border-radius: 6px; cursor: pointer; font-size: 16px;
+display: flex; align-items: center; justify-content: center;
+transition: background-color 0.2s, color 0.2s;
+}
+.btn-icon:hover:not(:disabled) { background-color: #f1f5f9; color: var(--text-main); }
+.btn-icon:disabled { opacity: 0.4; cursor: not-allowed; }
+.btn-icon.btn-icon-delete:hover:not(:disabled) { color: #ef4444; }
+
+.toast-container {
+position: fixed; bottom: 24px; right: 24px;
+display: flex; flex-direction: column; gap: 8px; z-index: 2000;
+}
+.toast {
+background: #1e293b; color: #fff; padding: 12px 20px;
+border-radius: 8px; font-size: 14px; box-shadow: var(--shadow);
+animation: slideIn 0.3s ease-out;
+}
+@keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+.hidden { display: none !important; }
+.loading-overlay {
+position: fixed; inset: 0; background: rgba(255,255,255,0.8); z-index: 500;
+display: flex; align-items: center; justify-content: center; font-weight: 600; color: var(--primary);
+}
+.passage-header {
+display: flex;
+justify-content: space-between;
+align-items: center;
+margin-bottom: 12px;
+padding-bottom: 12px;
+border-bottom: 1px solid var(--border);
+}
+.passage-header-label {
+font-size: 13px;
+font-weight: 600;
+color: var(--text-muted);
+}
+#passageBody.passage-collapsed {
+display: none;
+}
+</style>
+</head>
+<body>
+<header class="top-header">
+<div class="header-left">
+<div class="logo-box" onclick="goDashboard()" title="Back to Dashboard">IELTS</div>
+<div class="header-title">Reading Editor <span class="page-indicator" id="headerTestName">...</span></div>
+</div>
+<div class="header-right">
+<button class="btn btn-outline btn-sm" onclick="goDashboard()">Back to Dashboard</button>
+</div>
+</header>
+<main class="main-container">
+<section class="workspace" id="workspace">
+<div id="loadingOverlay" class="loading-overlay">Loading Test Data...</div>
+<div class="builder-view" id="builderView">
+<div class="builder-header">
+<div class="builder-header-info">
+<input type="text" class="editable-name" id="builderTestName" value="Loading..." readonly>
+<span class="badge badge-reading">Reading</span>
+<span id="statusPill" class="status-pill status-draft hidden">Draft</span>
+</div>
+<div class="builder-actions">
+<button class="btn btn-primary btn-sm" id="previewButton" onclick="previewTest()" disabled>Preview</button>
+<button class="btn btn-primary-red btn-sm hidden" id="publishButton" onclick="togglePublish()">Publish</button>
+</div>
+</div>
+<div class="builder-content">
+            <div class="section-timeline" id="sectionTimeline">
+                <!-- Timeline items injected here -->
+            </div>
+
+            <div class="section-editor">
+				
+                <div class="field-group">
+                    <div class="passage-header">
+                        <span class="passage-header-label">Passage</span>
+                        <button class="btn btn-outline btn-sm" id="passageCollapseBtn" onclick="togglePassageCollapsed()"></button>
+                    </div>
+                    <label class="field-label">Passage Title</label>
+                    <input type="text" class="input-text" id="sectionTitle" placeholder="e.g. Urbanization in the 21st Century">
+                </div>
+                <div class="field-group">
+                    <label class="field-label">Passage Content</label>
+                    <div id="passageBody">
+                        <div id="passageEditorContainer">
+                            <div id="passageToolbar">
+                                <span class="ql-formats">
+                                    <select class="ql-header">
+                                        <option selected></option>
+                                        <option value="2"></option>
+                                        <option value="3"></option>
+                                    </select>
+                                </span>
+                                <span class="ql-formats">
+                                    <button class="ql-bold"></button>
+                                    <button class="ql-italic"></button>
+                                    <button class="ql-underline"></button>
+                                </span>
+                                <span class="ql-formats">
+                                    <button class="ql-list" value="ordered"></button>
+                                    <button class="ql-list" value="bullet"></button>
+                                </span>
+                                <span class="ql-formats">
+                                    <button class="ql-link"></button>
+                                    <button class="ql-clean"></button>
+                                </span>
+                            </div>
+                            <div id="passageEditor"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="question-blocks-header">
+                    <h3 style="font-size: 16px; font-weight: 700;">Question Blocks</h3>
+                    <div style="position:relative;">
+                        <button class="btn btn-outline btn-sm" id="btnAddBlockMenu" onclick="toggleAddMenu()">+ Add Question Block</button>
+                        <div class="add-menu" id="addBlockMenu">
+                            <div class="add-menu-item" onclick="addBlock('mcq_set')">MCQ Set <span>+</span></div>
+                            <div class="add-menu-item" onclick="addBlock('gap_fill')">Gap Fill <span>+</span></div>
+                            <div class="add-menu-item" onclick="addBlock('gap_fill_visual')">Gap Fill (Visual)<span>+</span></div>
+                            <div class="add-menu-item" onclick="addBlock('matching')">Matching <span>+</span></div>
+                            <div class="add-menu-item" onclick="addBlock('matching_visual')">Matching (Visual)<span>+</span></div>
+                            <div class="add-menu-item" onclick="addBlock('tfng')">True/False/Not Given (TFNG/YNNG)</div>
+                            <div class="add-menu-item" onclick="addBlock('matching_headings')">Matching Headings</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="blocksContainer">
+                    <div class="no-questions">
+                        No question blocks yet. Start by adding a block type.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+</main>
+<div class="toast-container" id="toastContainer"></div>
+<script type="module">
+import { DB } from "../../db/db.tests.js";
+
+// ============================================
+// STATE
+// ============================================
+
+const CURRENT_SKILL = 'Reading';
+let currentTest = null;
+let quill = null;
+
+let activeSectionIndex = 0;
+let workspaceScrollTop = 0;
+
+const UI_STATE_KEY = (testId) => `reading_editor_ui_state::${testId}`;
+
+// ============================================
+// UI
+// ============================================
+
+function saveUiState(testId) {
+try {
+const workspace = document.getElementById('workspace');
+const state = {
+activeSectionIndex,
+workspaceScrollTop: workspace ? workspace.scrollTop : 0
+};
+sessionStorage.setItem(UI_STATE_KEY(testId || (currentTest && currentTest.id) || 'unknown'), JSON.stringify(state));
+} catch (e) { console.warn('saveUiState err', e); }
+}
+
+function restoreUiState(testId) {
+try {
+const raw = sessionStorage.getItem(UI_STATE_KEY(testId));
+if (!raw) return;
+const s = JSON.parse(raw);
+if (typeof s.activeSectionIndex === 'number') activeSectionIndex = s.activeSectionIndex;
+workspaceScrollTop = s.workspaceScrollTop || 0;
+} catch (e) { console.warn('restoreUiState err', e); }
+}
+
+function applyUiStateToDom() {
+document.querySelectorAll('#sectionTimeline .timeline-item').forEach((el, i) => {
+el.dataset.short = `P${i+1}`;
+});
+
+setTimeout(() => {
+const ws = document.getElementById('workspace');
+if (ws) ws.scrollTop = workspaceScrollTop;
+document.getElementById('addBlockMenu')?.classList.remove('show');
+}, 50);
+}
+
+function initQuill() {
+quill = new Quill('#passageEditor', {
+theme: 'snow',
+modules: {
+toolbar: '#passageToolbar'
+},
+placeholder: 'Paste the full reading passage text here...'
+});
+
+// Save on Blur
+quill.on('selection-change', (range) => {
+if (!range) {
+// Focus lost (blur)
+savePassageHtml();
+}
+});
+}
+
+async function savePassageHtml() {
+if (!currentTest || !quill) return;
+const section = currentTest.data[activeSectionIndex];
+const currentHtml = quill.root.innerHTML;
+// Check if actually changed to avoid redundant writes
+if (section && section.instructions !== currentHtml) {
+try {
+await DB.updateSection(currentTest.id, section.id, { instructions: currentHtml });
+section.instructions = currentHtml;
+} catch (err) { console.error('Save passage error', err); }
+}
+}
+
+// ============================================
+// EVENTS
+// ============================================
+
+window.onload = async function() {
+try {
+initQuill();
+const params = new URLSearchParams(window.location.search);
+const testId = params.get('testId');
+
+if (!testId) {
+alert("No Test ID specified. Returning to dashboard.");
+window.location.href = 'Test_Editor_Shell.html';
+return;
+}
+
+restoreUiState(testId);
+const editResult = await DB.commitReturnFromEditIfAny();
+await loadTest(testId, { preserveActiveSection: true });
+
+if (editResult.committed && editResult.testId === testId) {
+showToast("Block saved successfully");
+}
+applyUiStateToDom();
+} catch (e) {
+console.error("Init error", e);
+showToast("Error connecting to database");
+} finally {
+document.getElementById('loadingOverlay').classList.add('hidden');
+}
+};
+
+window.addEventListener('beforeunload', () => {
+savePassageHtml();
+saveUiState(currentTest?.id);
+});
+
+window.goDashboard = function() { window.location.href = 'Test_Editor_Shell.html'; }
+
+window.showToast = function(message) {
+const container = document.getElementById('toastContainer');
+const toast = document.createElement('div');
+toast.className = 'toast';
+toast.innerText = message;
+container.appendChild(toast);
+setTimeout(() => {
+toast.style.opacity = '0';
+setTimeout(() => toast.remove(), 500);
+}, 3000);
+}
+
+window.toggleAddMenu = function() {
+const menu = document.getElementById('addBlockMenu');
+menu.classList.toggle('show');
+}
+
+document.addEventListener('click', function(e) {
+const menu = document.getElementById('addBlockMenu');
+const btn = document.getElementById('btnAddBlockMenu');
+if (menu && btn && !menu.contains(e.target) && !btn.contains(e.target)) {
+menu.classList.remove('show');
+}
+});
+
+// ============================================
+// DB
+// ============================================
+
+window.loadTest = async function(id, opts = {}) {
+try {
+currentTest = await DB.loadTest(id);
+
+if (currentTest.skill !== CURRENT_SKILL) {
+console.warn(`Test ID ${id} is ${currentTest.skill}, but Editor is for ${CURRENT_SKILL}.`);
+}
+
+if (!opts.preserveActiveSection || typeof activeSectionIndex !== 'number') {
+activeSectionIndex = 0;
+}
+if (!Array.isArray(currentTest.data) || currentTest.data.length === 0) {
+activeSectionIndex = 0;
+} else if (activeSectionIndex < 0 || activeSectionIndex >= currentTest.data.length) {
+activeSectionIndex = 0;
+}
+
+document.getElementById('builderTestName').value = currentTest.name;
+document.getElementById('headerTestName').innerText = currentTest.name;
+document.getElementById('previewButton').disabled = false;
+
+currentTest.status = currentTest.status || 'draft';
+renderPublishButton();
+
+renderTimeline();
+renderSectionEditor();
+document.getElementById('addBlockMenu')?.classList.remove('show');
+} catch(e) {
+console.error(e);
+showToast("Failed to load test");
+}
+}
+
+function countUnitsForMeta(data, blockType) {
+if (!data) return 0;
+
+// Special handling for MCQ with "byCorrectAnswers" mode
+if (blockType === 'mcq_set' && data.questionCountMode === 'byCorrectAnswers') {
+    if (Array.isArray(data.questions)) {
+        return data.questions.reduce((sum, q) => {
+            const correctCount = Array.isArray(q.correctIndices) && q.correctIndices.length > 0 
+                ? q.correctIndices.length 
+                : 1;
+            return sum + correctCount;
+        }, 0);
+    }
+    return 0;
+}
+
+// Default logic for all other cases
+if (Array.isArray(data.questions)) return data.questions.length;
+if (Array.isArray(data.gaps)) return data.gaps.length;
+if (Array.isArray(data.slots)) return data.slots.length;
+if (Array.isArray(data.items)) return data.items.length;
+if (Array.isArray(data.pairs)) return data.pairs.length;
+if (Array.isArray(data.pair)) return data.pair.length;
+return 0;
+}
+
+function formatBlockLabel(block) {
+const typeLabels = {
+'mcq_set': 'MCQ Set',
+'gap_fill': 'Gap Fill',
+'matching': 'Matching',
+'matching_visual': 'Matching (Visual)',
+'gap_fill_visual': 'Gap Fill (Visual)',
+'tfng': 'TFNG / YNNG',
+'matching_headings': 'Matching Headings'
+};
+const typeLabel = typeLabels[block.type] || (block.type || 'Block');
+const count = countUnitsForMeta(block.data, block.type);
+return `${typeLabel}${count > 0 ? ` (${count})` : ''}`;
+}
+
+function renderTimeline() {
+if (!currentTest) return;
+const timeline = document.getElementById('sectionTimeline');
+
+timeline.querySelectorAll('.timeline-item').forEach(n => n.remove());
+
+const itemsHtml = (currentTest.data || []).map((sec, idx) => {
+const title = (sec.title && sec.title.trim()) ? sec.title.trim() : `Passage ${idx + 1}`;
+const blocksCount = Array.isArray(sec.questions) ? sec.questions.length : 0;
+let questionsCount = 0;
+(Array.isArray(sec.questions) ? sec.questions : []).forEach(b => {
+questionsCount += countUnitsForMeta(b.data, b.type);
+});
+const meta = `${blocksCount} ${blocksCount === 1 ? 'block' : 'blocks'} · ${questionsCount} ${questionsCount === 1 ? 'question' : 'questions'}`;
+return `
+<div class="timeline-item ${activeSectionIndex === idx ? 'active' : ''}" onclick="switchSection(${idx})">
+<div class="timeline-label">${title}</div>
+<div class="timeline-meta">${meta}</div>
+</div>
+`;
+}).join('');
+timeline.insertAdjacentHTML('beforeend', itemsHtml);
+}
+
+function renderBlocksList(section) {
+if (!section) return;
+const container = document.getElementById('blocksContainer');
+const questions = section.questions || [];
+
+if (questions.length === 0) {
+container.innerHTML = "<div class='no-questions'>No question blocks yet. Start by adding a block type.</div>";
+return;
+}
+
+const html = `
+<div class="block-list">
+${questions.map((block, idx) => {
+const qcount = countUnitsForMeta(block.data, block.type);
+const qLabel = `${qcount} ${qcount === 1 ? 'question' : 'questions'}`;
+const typeClass = `type-${block.type || 'unknown'}`;
+return `
+<div class="block-item ${typeClass}" data-block-id="${block.id}">
+<div class="block-info">
+<div class="block-type">${formatBlockLabel(block)}</div>
+<div class="block-meta">${qLabel}</div>
+</div>
+<div class="block-actions">
+<button class="btn-icon" onclick="editBlock('${block.id}')" title="Edit">✎</button>
+<button class="btn-icon" onclick="duplicateBlock('${block.id}')" title="Duplicate block">⧉</button>
+<button class="btn-icon" onclick="moveBlockUp('${block.id}')" ${idx === 0 ? 'disabled' : ''} title="Move Up">↑</button>
+<button class="btn-icon" onclick="moveBlockDown('${block.id}')" ${idx === questions.length - 1 ? 'disabled' : ''} title="Move Down">↓</button>
+<button class="btn-icon btn-icon-delete" onclick="deleteBlock('${block.id}')" title="Delete">✕</button>
+</div>
+</div>
+`;
+}).join('')}
+</div>
+`;
+container.innerHTML = html;
+}
+
+window.switchSection = async function(index) {
+// Save current rich text before switching
+await savePassageHtml();
+
+activeSectionIndex = index;
+renderTimeline();
+renderSectionEditor();
+saveUiState(currentTest?.id);
+}
+
+function renderSectionEditor() {
+if (!currentTest) return;
+const section = currentTest.data[activeSectionIndex];
+if (!section) {
+document.getElementById('blocksContainer').innerHTML = "<div class='no-questions'>No section found.</div>";
+return;
+}
+
+// Map Title
+document.getElementById('sectionTitle').value = section.title || '';
+
+// Map Passage Content to Quill
+if (quill) {
+quill.root.innerHTML = section.instructions || '';
+}
+
+// Apply passage collapsed state
+const isCollapsed = getPassageCollapsedState(currentTest.id, section.id);
+applyPassageCollapsedState(isCollapsed);
+
+renderBlocksList(section);
+}
+
+// --- Restored Functionality ---
+
+document.getElementById('sectionTitle')?.addEventListener('blur', async function() {
+    if (!currentTest) return;
+    const section = currentTest.data[activeSectionIndex];
+    if (section && section.title !== this.value) {
+        try {
+            await DB.updateSection(currentTest.id, section.id, { title: this.value });
+            section.title = this.value;
+            renderTimeline();
+            saveUiState(currentTest.id);
+        } catch (err) { console.error(err); }
+    }
+});
+
+function getPassageCollapsedState(testId, sectionId) {
+    try {
+        const key = `passage_collapsed_${testId}_${sectionId}`;
+        return sessionStorage.getItem(key) === 'true';
+    } catch(e) { return false; }
+}
+
+function applyPassageCollapsedState(isCollapsed) {
+    const body = document.getElementById('passageBody');
+    const btn = document.getElementById('passageCollapseBtn');
+    if(!body || !btn) return;
+    
+    if(isCollapsed) {
+        body.classList.add('passage-collapsed');
+        btn.innerText = 'Show';
+    } else {
+        body.classList.remove('passage-collapsed');
+        btn.innerText = 'Hide';
+    }
+}
+
+window.togglePassageCollapsed = function() {
+    if(!currentTest) return;
+    const section = currentTest.data[activeSectionIndex];
+    if(!section) return;
+    
+    const key = `passage_collapsed_${currentTest.id}_${section.id}`;
+    const currentlyCollapsed = sessionStorage.getItem(key) === 'true';
+    const newState = !currentlyCollapsed;
+    sessionStorage.setItem(key, String(newState));
+    
+    applyPassageCollapsedState(newState);
+}
+
+window.editBlock = function(blockId) {
+    savePassageHtml();
+    const sec = currentTest.data[activeSectionIndex];
+    const blk = sec.questions.find(b=>b.id===blockId);
+    sessionStorage.setItem('sys_editing_data', JSON.stringify(blk.data));
+    sessionStorage.setItem('sys_editing_target', JSON.stringify({testId:currentTest.id, sectionId:sec.id, blockId:blockId, blockType:blk.type}));
+    sessionStorage.setItem('sys_editing_status', 'editing');
+    sessionStorage.setItem('sys_return_url', window.location.href);
+    
+    if (blk.type === 'matching_headings') {
+        const passageHtml = quill ? quill.root.innerHTML : (sec.instructions || '');
+        try { sessionStorage.setItem('sys_passage_html', passageHtml); } catch(e) { console.warn('Could not save passage HTML to sessionStorage', e); }
+    }
+    window.location.href = `../blocks/${blk.type}.html`;
+}
+
+window.previewTest = async function() {
+    if (!currentTest) return;
+    await savePassageHtml();
+    window.open(`preview.html?testId=${currentTest.id}`, '_blank');
+}
+
+window.addBlock = async function(blockType) {
+    if (!currentTest) return;
+    const section = currentTest.data[activeSectionIndex];
+    if (!section) return;
+
+    try {
+        saveUiState(currentTest.id);
+
+        let defaultData = { questions: [] };
+        if (blockType === 'mcq_set') defaultData = { questions: [] };
+        else if (blockType === 'gap_fill' || blockType === 'gap_fill_visual') defaultData = { gaps: [] };
+        else if (blockType === 'matching') defaultData = { items: [] };
+        else if (blockType === 'matching_visual') defaultData = { pairs: [] };
+        else if (blockType === 'tfng') defaultData = { numbering: "", instructions: "", mode: "TFNG", questions: [] };
+        else if (blockType === 'matching_headings') defaultData = { numbering: "", instructions: "", prompt: "", inlineSlots: true, options: [], slots: [], answerKey: {} };
+
+        if (DB && typeof DB.addBlock === 'function') {
+            await DB.addBlock(currentTest.id, section.id, blockType, defaultData);
+            await loadTest(currentTest.id, { preserveActiveSection: true });
+            applyUiStateToDom();
+        } else {
+            const newBlock = {
+                id: 'block_' + Date.now(),
+                type: blockType,
+                title: '',
+                data: defaultData
+            };
+            section.questions.push(newBlock);
+            renderBlocksList(section);
+        }
+
+        showToast('Block added');
+        saveUiState(currentTest.id);
+    } catch (err) {
+        console.error('addBlock err', err);
+        showToast('Failed to add block');
+    }
+};
+
+window.duplicateBlock = async function(blockId) {
+    if (!currentTest) return;
+    const section = currentTest.data[activeSectionIndex];
+    const originalBlock = section.questions.find(b => b.id === blockId);
+    if(!originalBlock) return;
+
+    try {
+        const newData = JSON.parse(JSON.stringify(originalBlock.data));
+        if (DB && typeof DB.addBlock === 'function') {
+            await DB.addBlock(currentTest.id, section.id, originalBlock.type, newData);
+            await loadTest(currentTest.id, { preserveActiveSection: true });
+            applyUiStateToDom();
+            showToast('Block duplicated');
+        }
+    } catch(e) {
+        console.error(e);
+        showToast('Duplicate failed');
+    }
+}
+
+window.moveBlockUp = async function(blockId) {
+    if (!currentTest) return;
+    const section = currentTest.data[activeSectionIndex];
+    if (!section) return;
+    
+    const idx = section.questions.findIndex(b => b.id === blockId);
+    if (idx <= 0) return;
+
+    try {
+        saveUiState(currentTest.id);
+        
+        // Try DB.moveBlock first, then DB.reorderBlock as fallback
+        if (DB && typeof DB.moveBlock === 'function') {
+            await DB.moveBlock(currentTest.id, section.id, blockId, 'up');
+        } else if (DB && typeof DB.reorderBlock === 'function') {
+            await DB.reorderBlock(currentTest.id, section.id, blockId, 'up');
+        } else {
+            throw new Error('No DB reorder method available');
+        }
+        
+        await loadTest(currentTest.id, { preserveActiveSection: true });
+        applyUiStateToDom();
+        showToast('Moved');
+        saveUiState(currentTest.id);
+    } catch (err) {
+        console.error('moveBlockUp err', err);
+        showToast('Failed to move block');
+    }
+}
+
+window.moveBlockDown = async function(blockId) {
+    if (!currentTest) return;
+    const section = currentTest.data[activeSectionIndex];
+    if (!section) return;
+    
+    const idx = section.questions.findIndex(b => b.id === blockId);
+    if (idx < 0 || idx >= section.questions.length - 1) return;
+
+    try {
+        saveUiState(currentTest.id);
+        
+        // Try DB.moveBlock first, then DB.reorderBlock as fallback
+        if (DB && typeof DB.moveBlock === 'function') {
+            await DB.moveBlock(currentTest.id, section.id, blockId, 'down');
+        } else if (DB && typeof DB.reorderBlock === 'function') {
+            await DB.reorderBlock(currentTest.id, section.id, blockId, 'down');
+        } else {
+            throw new Error('No DB reorder method available');
+        }
+        
+        await loadTest(currentTest.id, { preserveActiveSection: true });
+        applyUiStateToDom();
+        showToast('Moved');
+        saveUiState(currentTest.id);
+    } catch (err) {
+        console.error('moveBlockDown err', err);
+        showToast('Failed to move block');
+    }
+}
+
+window.deleteBlock = async function(blockId) {
+    if (!currentTest) return;
+    if (!confirm('Delete this block?')) return;
+    const section = currentTest.data[activeSectionIndex];
+    if (!section) return;
+    const idx = section.questions.findIndex(b => b.id === blockId);
+    if (idx < 0) return;
+
+    try {
+        saveUiState(currentTest.id);
+
+        if (DB && typeof DB.deleteBlock === 'function') {
+            await DB.deleteBlock(currentTest.id, section.id, blockId);
+            await loadTest(currentTest.id, { preserveActiveSection: true });
+            applyUiStateToDom();
+        } else {
+            section.questions.splice(idx, 1);
+            renderBlocksList(section);
+        }
+
+        showToast('Block deleted');
+        saveUiState(currentTest.id);
+    } catch (err) {
+        console.error('deleteBlock err', err);
+        showToast('Failed to delete block');
+    }
+};
+
+function renderPublishButton() {
+    const publishButton = document.getElementById('publishButton');
+    const statusPill = document.getElementById('statusPill');
+
+    if (!currentTest || !publishButton || !statusPill) return;
+
+    const status = currentTest.status || 'draft';
+
+    if (status === 'published') {
+        publishButton.innerText = 'Unpublish';
+        publishButton.classList.remove('hidden');
+        statusPill.classList.remove('hidden');
+        statusPill.innerText = 'Published';
+        statusPill.classList.add('status-published');
+        statusPill.classList.remove('status-draft');
+    } else {
+        publishButton.innerText = 'Publish';
+        publishButton.classList.remove('hidden');
+        statusPill.classList.remove('hidden');
+        statusPill.innerText = 'Draft';
+        statusPill.classList.add('status-draft');
+        statusPill.classList.remove('status-published');
+    }
+}
+
+window.togglePublish = async function() {
+    if (!currentTest) return;
+    const testId = currentTest.id;
+    const isPublished = currentTest.status === 'published';
+
+    try {
+        if (isPublished) {
+            await DB.unpublishTest(testId);
+            currentTest.status = 'draft';
+            showToast('Test unpublished');
+        } else {
+            await DB.publishTest(testId);
+            currentTest.status = 'published';
+            showToast('Test published');
+        }
+        renderPublishButton();
+        saveUiState(currentTest.id);
+    } catch (err) {
+        console.error('togglePublish error', err);
+        showToast('Failed to update publish status');
+    }
+};
+</script>
+</body>
+</html>

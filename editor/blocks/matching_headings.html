@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Matching Headings Block Editor</title>
+    <style>
+        /* --- General Layout (Matching system style) --- */
+        :root {
+            --primary: #0072bc;
+            --primary-hover: #005a96;
+            --bg: #f4f6f8;
+            --surface: #ffffff;
+            --border: #cbd5e0;
+            --text-main: #1e293b;
+            --text-muted: #64748b;
+            --success: #2e7d32;
+        }
+
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: var(--bg); color: var(--text-main); margin: 0; padding: 20px; }
+        .editor-container { max-width: 1200px; margin: 0 auto; background: var(--surface); padding: 25px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); }
+        
+        .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #f0f0f0; padding-bottom: 15px; margin-bottom: 20px; }
+        .header h2 { margin: 0; font-size: 20px; color: #333; }
+        .btn-cancel { text-decoration: none; color: #666; border: 1px solid #ddd; padding: 8px 16px; border-radius: 4px; font-size: 14px; transition: 0.2s; }
+        .btn-cancel:hover { background: #f9f9f9; }
+
+        .layout-grid { display: grid; grid-template-columns: 380px 1fr; gap: 30px; }
+
+        /* --- Editor Sidebar Styles --- */
+        .editor-sidebar { display: flex; flex-direction: column; gap: 20px; height: calc(100vh - 120px); overflow-y: auto; padding-right: 5px; }
+        .ed-section { background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; }
+        .ed-section-title { font-weight: 700; font-size: 12px; text-transform: uppercase; color: var(--text-muted); margin-bottom: 15px; display: block; border-bottom: 1px solid #f1f5f9; padding-bottom: 8px; }
+        
+        .ed-field { margin-bottom: 12px; }
+        .ed-label { font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; margin-bottom: 4px; display: block; }
+        .ed-input, .ed-textarea { width: 100%; padding: 8px 10px; border: 1px solid var(--border); border-radius: 6px; font-size: 13px; box-sizing: border-box; }
+        .ed-textarea { height: 60px; resize: vertical; }
+
+        .ed-list { display: flex; flex-direction: column; gap: 8px; }
+        .ed-list-row { display: flex; align-items: center; gap: 8px; background: #f8fafc; padding: 6px; border-radius: 6px; border: 1px solid #edf2f7; }
+        .ed-idx { font-weight: 800; font-size: 12px; color: var(--primary); width: 24px; text-align: center; }
+        .btn-del { background: none; border: none; color: #94a3b8; font-size: 18px; cursor: pointer; padding: 0 4px; }
+        .btn-del:hover { color: #ef4444; }
+
+        .btn-add { width: 100%; padding: 8px; background: white; border: 1px dashed var(--border); border-radius: 6px; color: var(--text-muted); cursor: pointer; font-size: 12px; font-weight: 600; margin-top: 8px; }
+        .btn-add:hover { background: #f8fafc; border-color: #94a3b8; }
+
+        .btn-save { padding: 10px 20px; background: var(--primary); color: white; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; width: 100%; font-size: 15px; margin-bottom: 10px; }
+        .btn-save:hover { background: var(--primary-hover); }
+
+        /* --- Passage View Styles --- */
+        .passage-panel { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 0; display: flex; flex-direction: column; height: calc(100vh - 120px); overflow: hidden; }
+        .passage-scroll-area { flex: 1; overflow-y: auto; padding: 20px; background: white; }
+        
+        /* Paragraph Wrapper and Add Button */
+        .passage-para-wrapper { position: relative; margin-bottom: 1.5em; padding: 5px 10px; border-radius: 4px; transition: background 0.2s; }
+        .passage-para-wrapper:hover { background: #f0f7ff; }
+        
+        .btn-add-slot-para {
+            position: absolute; left: -30px; top: 8px;
+            width: 24px; height: 24px; background: var(--primary); color: white;
+            border-radius: 50%; border: none; font-size: 18px; line-height: 1;
+            cursor: pointer; opacity: 0; transition: opacity 0.2s, transform 0.2s;
+            display: flex; align-items: center; justify-content: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .passage-para-wrapper:hover .btn-add-slot-para { opacity: 1; transform: translateX(5px); }
+        .btn-add-slot-para:hover { transform: scale(1.1) translateX(5px); background: var(--primary-hover); }
+        .btn-add-slot-para::after { content: "Add heading slot here"; position: absolute; left: 30px; top: 0; background: #333; color: white; font-size: 10px; padding: 4px 8px; border-radius: 4px; white-space: nowrap; visibility: hidden; opacity: 0; transition: 0.2s; }
+        .btn-add-slot-para:hover::after { visibility: visible; opacity: 1; }
+
+        /* Slot Styles */
+        .mh-slot {
+            display: inline-flex; align-items: center; vertical-align: middle;
+            min-width: 180px; min-height: 36px; border: 2px dashed #cbd5e0;
+            background: #fbfcfd; border-radius: 6px; padding: 2px 8px;
+            margin-right: 12px; margin-bottom: 5px; transition: 0.2s; cursor: pointer;
+            position: relative; font-family: sans-serif;
+        }
+        .mh-slot:hover { border-color: var(--primary); background: #f0f7ff; }
+        .mh-slot.over { border-color: var(--primary); background: #ebf8ff; border-style: solid; }
+        
+        .slot-label-tag { position: absolute; top: -18px; left: 0; font-size: 10px; font-weight: bold; color: var(--primary); text-transform: uppercase; }
+
+        /* Headings Bank */
+        .bank-panel { background: #f8fafc; border-top: 1px solid #e2e8f0; padding: 15px; }
+        .headings-bank-title { font-weight: bold; font-size: 13px; color: #64748b; text-transform: uppercase; margin-bottom: 12px; display: flex; justify-content: space-between; }
+        .headings-bank { display: flex; flex-wrap: wrap; gap: 8px; max-height: 120px; overflow-y: auto; }
+        
+        .pill {
+            display: flex; align-items: center; background: #fff; border: 1px solid #94a3b8;
+            border-radius: 4px; padding: 6px 12px; font-size: 13px; cursor: grab;
+            user-select: none; box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+        }
+        .pill-letter { font-weight: bold; color: var(--primary); background: #ebf8ff; padding: 2px 6px; border-radius: 3px; font-size: 11px; margin-right: 10px; }
+        .pill.used { opacity: 0.3; cursor: default; }
+        
+        .pill.in-slot { width: 100%; border: 1px solid var(--success); background: #f0fff4; color: #1b5e20; cursor: pointer; }
+        .pill.in-slot .pill-letter { background: #c6f6d5; color: #1b5e20; }
+        .pill-clear { margin-left: auto; color: #e53e3e; font-weight: bold; font-size: 16px; padding-left: 10px; }
+
+        .placeholder-msg { color: #94a3b8; text-align: center; padding: 40px; font-style: italic; }
+        
+        /* CBT Logic Styles */
+        .cbt-box { background: #f3f9ff; border: 1px solid #c2e0ff; padding: 12px 15px; border-radius: 6px; margin-bottom: 10px; margin: 20px 20px 10px 20px; }
+        .instruction-num { font-weight: bold; display: block; margin-bottom: 2px; }
+        .instruction-text { font-style: italic; color: #444; font-size: 14px; }
+    </style>
+</head>
+<body>
+
+<div class="editor-container">
+    <div class="header">
+        <h2>Edit Matching Headings</h2>
+        <a href="#" id="btnBack" class="btn-cancel">Cancel / Back</a>
+    </div>
+
+    <div class="layout-grid">
+        <!-- Sidebar Editor -->
+        <div class="editor-sidebar">
+            <button class="btn-save" id="btnSave">Save Changes</button>
+
+            <div class="ed-section">
+                <span class="ed-section-title">General Info</span>
+                <div class="ed-field">
+                    <label class="ed-label">Numbering</label>
+                    <input type="text" id="m-num" class="ed-input" placeholder="e.g. Questions 14-18">
+                </div>
+                <div class="ed-field">
+                    <label class="ed-label">Instructions</label>
+                    <textarea id="m-instr" class="ed-textarea" placeholder="e.g. Choose the correct heading..."></textarea>
+                </div>
+            </div>
+
+            <div class="ed-section">
+                <span class="ed-section-title">Headings Bank</span>
+                <div id="headings-list" class="ed-list"></div>
+                <button class="btn-add" id="btnAddHeading">+ Add Heading</button>
+            </div>
+
+            <div class="ed-section">
+                <span class="ed-section-title">Slot List (Answer Key)</span>
+                <div id="slots-config-list" class="ed-list"></div>
+                <p style="font-size: 11px; color: #94a3b8; margin-top: 10px;">Slots are created by clicking the "+" button next to paragraphs in the passage view.</p>
+            </div>
+        </div>
+
+        <!-- Passage View Area -->
+        <div class="passage-panel">
+            <div class="cbt-box">
+                <span id="prev-num" class="instruction-num"></span>
+                <span id="prev-instr" class="instruction-text"></span>
+            </div>
+
+            <div class="passage-scroll-area" id="passage-container">
+                <!-- Paragraphs with interactive buttons injected here -->
+            </div>
+
+            <div class="bank-panel">
+                <div class="headings-bank-title">
+                    List of Headings
+                    <span style="font-size: 10px; font-weight: normal; text-transform: none;">Drag to a slot to set answer</span>
+                </div>
+                <div class="headings-bank" id="prev-bank">
+                    <!-- Draggable pills rendered here -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script type="module">
+import { DB } from "../../db/db.tests.js";
+
+// --- Data Management ---
+const SESS_DATA = 'sys_editing_data';
+const SESS_STATUS = 'sys_editing_status';
+const SESS_RETURN = 'sys_return_url';
+const SESS_PASSAGE = 'sys_passage_html';
+
+let blockData = {
+    numbering: "",
+    instructions: "",
+    options: [],
+    slots: [],
+    answerKey: {}
+};
+
+let passageHtml = "";
+
+// --- Initialization ---
+async function init() {
+    const raw = sessionStorage.getItem(SESS_DATA);
+    if (raw) {
+        try { 
+            blockData = JSON.parse(raw);
+            if (!blockData.slots) blockData.slots = [];
+            if (!blockData.answerKey) blockData.answerKey = {};
+        } catch (e) { console.error("Error parsing session data", e); }
+    }
+
+    // Priority: sessionStorage.sys_passage_html -> Firestore section.instructions -> empty
+    const stored = sessionStorage.getItem(SESS_PASSAGE);
+    if (stored && String(stored).trim()) {
+        passageHtml = stored;
+    } else {
+        // try to load from DB using sys_editing_target
+        const rawTarget = sessionStorage.getItem('sys_editing_target');
+        if (rawTarget) {
+            try {
+                const target = JSON.parse(rawTarget);
+                const testId = target && target.testId;
+                const sectionId = target && target.sectionId;
+                if (testId && sectionId) {
+                    try {
+                        const test = await DB.loadTest(testId);
+                        const section = (test.data || []).find(s => s.id === sectionId);
+                        passageHtml = (section && section.instructions) ? section.instructions : '';
+                    } catch (e) {
+                        console.warn('Failed to load test for passage fallback', e);
+                    }
+                }
+            } catch (e) {
+                console.warn('Invalid sys_editing_target JSON', e);
+            }
+        }
+    }
+
+    const returnUrl = sessionStorage.getItem(SESS_RETURN) || 'Test_Editor_Reading.html';
+    document.getElementById('btnBack').href = returnUrl;
+
+    // Wire live updates
+    document.getElementById('m-num').oninput = (e) => {
+        blockData.numbering = e.target.value;
+        document.getElementById('prev-num').innerText = blockData.numbering;
+    };
+    document.getElementById('m-instr').oninput = (e) => {
+        blockData.instructions = e.target.value;
+        document.getElementById('prev-instr').innerText = blockData.instructions;
+    };
+
+    renderAll();
+}
+
+function renderAll() {
+    document.getElementById('m-num').value = blockData.numbering || "";
+    document.getElementById('m-instr').value = blockData.instructions || "";
+    document.getElementById('prev-num').innerText = blockData.numbering || "";
+    document.getElementById('prev-instr').innerText = blockData.instructions || "";
+
+    renderHeadingsEditor();
+    renderSlotsList();
+    renderPassageView();
+    renderPreviewBank();
+}
+
+// --- Heading Bank Editor (Sidebar) ---
+function renderHeadingsEditor() {
+    const container = document.getElementById('headings-list');
+    container.innerHTML = '';
+    blockData.options.forEach((opt, idx) => {
+        const letter = String.fromCharCode(65 + idx);
+        const row = document.createElement('div');
+        row.className = 'ed-list-row';
+        row.innerHTML = `
+            <span class="ed-idx">${letter}</span>
+            <input type="text" class="ed-input" value="${opt.text || ''}" placeholder="Heading text">
+            <button class="btn-del" title="Delete Heading">×</button>
+        `;
+        const input = row.querySelector('input');
+        input.oninput = (e) => { 
+            blockData.options[idx].text = e.target.value; 
+            renderPreviewBank(); 
+            renderPassageView();
+        };
+        row.querySelector('.btn-del').onclick = () => {
+            blockData.options.splice(idx, 1);
+            // Simple reset of answerKey to avoid mismatch
+            blockData.answerKey = {}; 
+            renderAll();
+        };
+        container.appendChild(row);
+    });
+}
+
+// --- Slot Mapping List (Sidebar) ---
+function renderSlotsList() {
+    const container = document.getElementById('slots-config-list');
+    container.innerHTML = '';
+
+    if (blockData.slots.length === 0) {
+        container.innerHTML = '<div style="font-size:12px; color:#94a3b8; text-align:center; padding:10px;">No slots added yet.</div>';
+        return;
+    }
+
+    blockData.slots.forEach((slot, idx) => {
+        const row = document.createElement('div');
+        row.className = 'ed-list-row';
+        
+        let optionsHtml = '<option value="">-- No Answer --</option>';
+        blockData.options.forEach((_, optIdx) => {
+            const letter = String.fromCharCode(65 + optIdx);
+            const selected = blockData.answerKey[slot.slotId] === letter ? 'selected' : '';
+            optionsHtml += `<option value="${letter}" ${selected}>Heading ${letter}</option>`;
+        });
+
+        row.innerHTML = `
+            <div style="font-size:10px; width:60px; overflow:hidden; text-overflow:ellipsis; color:#94a3b8" title="${slot.slotId}">${slot.slotId.split('_').pop()}</div>
+            <input type="text" class="ed-input" value="${slot.label}" placeholder="Label" style="flex:1">
+            <select class="ed-input" style="width: 80px">${optionsHtml}</select>
+            <button class="btn-del" title="Remove Slot">×</button>
+        `;
+
+        row.querySelector('input').oninput = (e) => {
+            blockData.slots[idx].label = e.target.value;
+            renderPassageView();
+        };
+        row.querySelector('select').onchange = (e) => {
+            blockData.answerKey[slot.slotId] = e.target.value;
+            renderPassageView();
+            renderPreviewBank();
+        };
+        row.querySelector('.btn-del').onclick = () => {
+            removeSlot(slot.slotId);
+        };
+        container.appendChild(row);
+    });
+}
+
+// --- Passage View (Main Area) ---
+function renderPassageView() {
+    const container = document.getElementById('passage-container');
+    
+    if (!passageHtml) {
+        container.innerHTML = `<div class="placeholder-msg">No passage content available.<br>Return to Reading Editor to edit the passage.</div>`;
+        return;
+    }
+
+    // Parse the HTML
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(`<div>${passageHtml}</div>`, 'text/html');
+    const root = doc.body.firstChild;
+    
+    // We look for direct children of the root (paragraphs, sections)
+    const children = Array.from(root.children);
+
+    container.innerHTML = "";
+
+    if (children.length > 0) {
+        // Existing HTML-based rendering path
+        children.forEach((child, paraIndex) => {
+            const wrapper = document.createElement('div');
+            wrapper.className = 'passage-para-wrapper';
+            wrapper.dataset.paraIndex = paraIndex;
+
+            // Find if this paragraph has a slot
+            const slot = blockData.slots.find(s => s.paraIndex === paraIndex);
+
+            const btnAdd = document.createElement('button');
+            btnAdd.className = 'btn-add-slot-para';
+            btnAdd.innerHTML = "+";
+            btnAdd.title = "Add heading slot here";
+            
+            if (slot) {
+                btnAdd.style.display = "none"; // Hide if already has a slot
+            }
+
+            btnAdd.onclick = () => addSlotToPara(paraIndex);
+
+            wrapper.appendChild(btnAdd);
+
+            // Add the slot visually at the start of the paragraph if it exists
+            if (slot) {
+                const slotEl = createVisualSlot(slot);
+                wrapper.appendChild(slotEl);
+            }
+
+            // Append the actual paragraph text content
+            const textNode = document.createElement('span');
+            textNode.innerHTML = child.innerHTML;
+            wrapper.appendChild(textNode);
+
+            container.appendChild(wrapper);
+        });
+    } else {
+        // Fallback: treat passage as plain text and split into paragraphs by blank lines
+        const rawText = (root && root.textContent) ? root.textContent : (passageHtml || '');
+        const paragraphs = String(rawText).split(/\n\s*\n+/).map(p => p.trim()).filter(Boolean);
+
+        paragraphs.forEach((para, paraIndex) => {
+            const wrapper = document.createElement('div');
+            wrapper.className = 'passage-para-wrapper';
+            wrapper.dataset.paraIndex = paraIndex;
+
+            const slot = blockData.slots.find(s => s.paraIndex === paraIndex);
+
+            const btnAdd = document.createElement('button');
+            btnAdd.className = 'btn-add-slot-para';
+            btnAdd.innerHTML = "+";
+            btnAdd.title = "Add heading slot here";
+            if (slot) btnAdd.style.display = "none";
+            btnAdd.onclick = () => addSlotToPara(paraIndex);
+
+            wrapper.appendChild(btnAdd);
+
+            if (slot) {
+                const slotEl = createVisualSlot(slot);
+                wrapper.appendChild(slotEl);
+            }
+
+            // Collapse single newlines inside paragraph into spaces for nicer display
+            const cleaned = para.replace(/\n+/g, ' ');
+            const textNode = document.createElement('span');
+            textNode.textContent = cleaned;
+            wrapper.appendChild(textNode);
+
+            container.appendChild(wrapper);
+        });
+    }
+}
+
+function createVisualSlot(slot) {
+    const slotEl = document.createElement('div');
+    slotEl.className = 'mh-slot';
+    slotEl.dataset.slotId = slot.slotId;
+    
+    const labelTag = document.createElement('span');
+    labelTag.className = 'slot-label-tag';
+    labelTag.innerText = slot.label;
+    slotEl.appendChild(labelTag);
+
+    const answer = blockData.answerKey[slot.slotId];
+    if (answer) {
+        const optIdx = answer.charCodeAt(0) - 65;
+        const optText = blockData.options[optIdx]?.text || '';
+        slotEl.innerHTML = `
+            <span class="slot-label-tag">${slot.label}</span>
+            <div class="pill in-slot">
+                <span class="pill-letter">${answer}</span>
+                <span style="flex:1; overflow:hidden; white-space:nowrap; text-overflow:ellipsis;">${optText}</span>
+                <span class="pill-clear">×</span>
+            </div>
+        `;
+        slotEl.querySelector('.pill-clear').onclick = (e) => {
+            e.stopPropagation();
+            delete blockData.answerKey[slot.slotId];
+            renderAll();
+        };
+    } else {
+        slotEl.innerHTML += `<span style="color:#cbd5e0; font-size:12px">Drop heading here</span>`;
+    }
+
+    // Drag and drop events
+    slotEl.ondragover = (e) => { e.preventDefault(); slotEl.classList.add('over'); };
+    slotEl.ondragleave = () => slotEl.classList.remove('over');
+    slotEl.ondrop = (e) => {
+        e.preventDefault();
+        slotEl.classList.remove('over');
+        const letter = e.dataTransfer.getData('letter');
+        if (letter) {
+            blockData.answerKey[slot.slotId] = letter;
+            renderAll();
+        }
+    };
+
+    return slotEl;
+}
+
+// --- Heading Bank Preview ---
+function renderPreviewBank() {
+    const bank = document.getElementById('prev-bank');
+    bank.innerHTML = '';
+    
+    const usedLetters = Object.values(blockData.answerKey);
+
+    blockData.options.forEach((opt, idx) => {
+        const letter = String.fromCharCode(65 + idx);
+        const isUsed = usedLetters.includes(letter);
+        
+        const pill = document.createElement('div');
+        pill.className = `pill ${isUsed ? 'used' : ''}`;
+        pill.draggable = !isUsed;
+        pill.innerHTML = `
+            <span class="pill-letter">${letter}</span>
+            <span class="pill-text">${opt.text || '(Empty)'}</span>
+        `;
+
+        if (!isUsed) {
+            pill.ondragstart = (e) => {
+                e.dataTransfer.setData('letter', letter);
+            };
+        }
+
+        bank.appendChild(pill);
+    });
+}
+
+// --- Helper Functions ---
+
+function addSlotToPara(paraIndex) {
+    const slotId = 'mh_' + Math.random().toString(36).substr(2, 9);
+    // Calculate label letter (Section A, B, C...)
+    const labelIndex = blockData.slots.length;
+    const label = `Section ${String.fromCharCode(65 + labelIndex)}`;
+    
+    blockData.slots.push({
+        slotId: slotId,
+        label: label,
+        paraIndex: paraIndex
+    });
+
+    // Re-sort slots by paraIndex so the sidebar list stays logical
+    blockData.slots.sort((a, b) => a.paraIndex - b.paraIndex);
+    
+    renderAll();
+}
+
+function removeSlot(slotId) {
+    blockData.slots = blockData.slots.filter(s => s.slotId !== slotId);
+    delete blockData.answerKey[slotId];
+    renderAll();
+}
+
+document.getElementById('btnAddHeading').onclick = () => {
+    blockData.options.push({ text: "" });
+    renderAll();
+};
+
+document.getElementById('btnSave').onclick = () => {
+    sessionStorage.setItem(SESS_DATA, JSON.stringify(blockData));
+    sessionStorage.setItem(SESS_STATUS, 'saved');
+    
+    const returnUrl = sessionStorage.getItem(SESS_RETURN) || 'Test_Editor_Reading.html';
+    window.location.href = returnUrl;
+};
+
+// Initialize on load
+window.onload = init;
+</script>
+
+</body>
+</html>

@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gap Fill Editor</title>
+    <style>
+        /* --- Page Layout Styles (Full-height app) --- */
+        html, body { height: 100%; }
+        body { font-family: 'Segoe UI', sans-serif; background: #f4f6f8; margin: 0; padding: 12px; overflow: hidden; }
+        .editor-container { width: calc(100vw - 24px); height: calc(100vh - 24px); max-width: 1600px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); display: flex; flex-direction: column; }
+        .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #f0f0f0; padding-bottom: 15px; margin-bottom: 20px; }
+        .btn-cancel { text-decoration: none; color: #666; border: 1px solid #ddd; padding: 6px 12px; border-radius: 4px; font-size: 14px; }
+        .btn-cancel:hover { background: #f9f9f9; }
+
+        /* --- Gap Fill Block CSS --- */
+        .gap-fill-task { 
+            font-family: Arial, sans-serif; 
+            color: #333; 
+            margin-top: 20px;
+        }
+
+        .cbt-instruction-box {
+            background-color: #f3f9ff;
+            border: 1px solid #c2e0ff;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 4px;
+            line-height: 1.5;
+        }
+
+        .gap-numbering-text {
+            font-weight: bold;
+            display: block;
+            margin-bottom: 4px;
+            font-size: 15px;
+        }
+
+        .gap-instruction-content {
+            font-size: 15px;
+            font-style: italic;
+            color: #444;
+        }
+
+        .passage-area {
+            line-height: 2.5; /* Increased line height for better vertical gap */
+            font-size: 16px;
+            padding: 10px 0;
+            color: #222;
+            overflow-wrap: anywhere;
+            word-break: break-word;
+        }
+
+        /* Taker View: Underlined Inputs */
+        .gap-input-wrapper {
+            white-space: normal;
+            font-weight: bold;
+            margin: 0 4px;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            max-width: 100%;
+            flex-wrap: wrap;
+        }
+
+        .cbt-gap-input {
+            border: none;
+            border-bottom: 1px solid #757575;
+            border-radius: 0;
+            padding: 2px 8px;
+            width: 130px;
+            max-width: 40vw;
+            font-size: 15px;
+            background: #fdfdfd;
+            outline: none;
+        }
+
+        .cbt-gap-input:focus {
+            border-bottom: 2px solid #0072bc;
+        }
+
+        /* Preview / Answer Key View: Green Pills (Matching MCQ Style) */
+        .gap-preview-ans {
+            color: #2e7d32;
+            background-color: #e8f5e9;
+            padding: 2px 10px;
+            border-radius: 4px;
+            font-weight: bold;
+            border-left: 4px solid #2e7d32; /* Parity with MCQ Correct border */
+            display: inline-flex;
+            margin: 4px 2px; /* Horizontal and Vertical gap */
+            white-space: normal;
+            align-items: center;
+            max-width: 100%;
+            flex-wrap: wrap;
+        }
+
+        /* Editor Panel Styles */
+        .gap-editor-panel {
+            font-family: Arial, sans-serif;
+            font-size: 13px;
+        }
+
+        /* Two-Column Layout */
+        .gf-two-col {
+            display: grid;
+            grid-template-columns: 1.4fr 1fr;
+            gap: 14px;
+            height: calc(100vh - 240px);
+            min-height: 0;
+        }
+
+        .gf-col-left {
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+        }
+
+        .gf-col-right {
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+        }
+
+        .gf-passage-section {
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+            min-height: 0; /* Enable flex shrinking */
+        }
+
+        .gf-passage-scroll {
+            height: 100%;
+            overflow-y: auto;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            flex: 1;
+            min-height: 0;
+        }
+
+        .gf-gaps-scroll {
+            height: 100%;
+            overflow-y: auto;
+            flex: 1;
+            min-height: 0;
+        }
+
+        @media (max-width: 1000px) {
+            .gf-two-col {
+                grid-template-columns: 1fr;
+            }
+
+            .gf-passage-scroll,
+            .gf-gaps-scroll {
+                height: auto;
+                overflow-y: visible;
+            }
+        }
+
+        #editor-mount { flex: 1; min-height: 0; }
+
+        .gap-editor-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #ddd;
+            padding-bottom: 10px;
+            margin-bottom: 15px;
+        }
+
+        .gap-ed-label {
+            font-size: 11px;
+            font-weight: bold;
+            color: #666;
+            text-transform: uppercase;
+            margin-bottom: 4px;
+            display: block;
+        }
+
+        .gap-ed-input {
+            width: 100%;
+            border: 1px solid #ccc;
+            padding: 8px;
+            font-size: 13px;
+            box-sizing: border-box;
+            border-radius: 4px;
+        }
+
+        /* Passage Editor with Auto-Numbering */
+        .p-passage-editor {
+            border: 1px solid #ccc;
+            min-height: 200px;
+            padding: 15px;
+            background: #fff;
+            font-size: 14px;
+            line-height: 2;
+            border-radius: 4px;
+            outline: none;
+            overflow-wrap: anywhere;
+            word-break: break-word;
+            white-space: normal;
+            overflow-x: hidden;
+        }
+
+        /* Numbered Gaps in Editor View */
+        .p-passage-editor .gap-marker {
+            background: #e3f2fd;
+            border-bottom: 2px solid #2196f3;
+            padding: 0 4px;
+            border-radius: 2px;
+            display: inline;
+            overflow-wrap: anywhere;
+            word-break: break-word;
+        }
+
+        .p-passage-editor .gap-marker::before {
+            content: "(" attr(data-index) ") ";
+            font-weight: bold;
+            margin-right: 4px;
+            color: #0072bc;
+            font-size: 0.85em;
+        }
+
+        /* Gap List Management Row */
+        .gap-list-row {
+            display: grid;
+            grid-template-columns: 32px 1fr 80px 32px;
+            align-items: center;
+            gap: 10px;
+            padding: 8px;
+            background: #fafafa;
+            border: 1px solid #eee;
+            margin-bottom: 5px;
+            border-radius: 4px;
+        }
+
+        .gap-idx-badge {
+            width: 24px;
+            height: 24px;
+            background: #0072bc;
+            color: white;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 11px;
+        }
+
+        .btn-mark-gap {
+            background: #0072bc;
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            width: 100%;
+            margin-bottom: 10px;
+        }
+
+        .btn-del-gap {
+            color: #d32f2f;
+            border: none;
+            background: none;
+            font-size: 18px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+
+<div class="editor-container">
+    <div class="header">
+        <h2 style="margin:0">Edit Gap Fill Block</h2>
+        <a href="#" id="btnBack" class="btn-cancel">Cancel / Back</a>
+    </div>
+    <div id="editor-mount"></div>
+</div>
+
+<script>
+/* --- gap_fill.block.js logic --- */
+
+const gapFillBlock = {
+    renderTaker(data) { return this.renderBase(data, true); },
+    renderEditor(data) { return this.renderBase(data, false); },
+
+    renderBase(data, isTaker) {
+        const div = document.createElement('div');
+        div.className = 'gap-fill-task';
+
+        // Safe data access
+        const numbering = data?.numbering || 'Questions 4-6';
+        const instruction = data?.instructions || 'Fill in the blank';
+
+        const temp = document.createElement('div');
+        temp.innerHTML = data?.passageHtml || '';
+        
+        const markers = temp.querySelectorAll('.gap-marker');
+        markers.forEach((el, i) => {
+            const idx = i + 1;
+            const gapId = el.dataset.id;
+            const gapData = (data?.gaps || []).find(g => g.id === gapId);
+
+            if (isTaker) {
+                el.outerHTML = `<span class="gap-input-wrapper">(${idx}) <input type="text" class="cbt-gap-input"></span>`;
+            } else {
+                // Editor/Preview mode: Green pill style
+                const ansText = gapData ? gapData.answers.join(' / ') : el.textContent;
+                el.outerHTML = `<span class="gap-preview-ans">(${idx}) ${escapeHtml(ansText)}</span>`;
+            }
+        });
+
+        div.innerHTML = `
+            <div class="cbt-instruction-box">
+                <span class="gap-numbering-text">${escapeHtml(numbering)}</span>
+                <span class="gap-instruction-content">${escapeHtml(instruction)}</span>
+            </div>
+            <div class="passage-area">${temp.innerHTML}</div>
+        `;
+        return div;
+    },
+
+    renderEditorPanel(data, ctx) {
+        const root = document.createElement('div');
+        root.className = 'gap-editor-panel';
+
+        // Ensure data arrays exist to prevent crashes
+        if (!data.gaps) data.gaps = [];
+
+        const render = () => {
+            root.innerHTML = `
+                <div class="gap-editor-header">
+                    <strong>Gap Fill Editor</strong>
+                    <button id="p-save-gap" style="background:#0072bc; color:white; border:none; padding:6px 12px; border-radius:4px; cursor:pointer; font-weight:bold;">Save Block</button>
+                </div>
+
+                <div style="display: flex; gap: 8px; margin-bottom: 12px;">
+                    <div style="flex: 1;">
+                        <label class="gap-ed-label">Numbering</label>
+                        <input type="text" class="gap-ed-input" id="p-gap-num" value="${escapeHtml(data?.numbering || 'Questions 4-6')}">
+                    </div>
+                    <div style="flex: 2;">
+                        <label class="gap-ed-label">Instructions</label>
+                        <input type="text" class="gap-ed-input" id="p-gap-instr" value="${escapeHtml(data?.instructions || 'Fill in the blank')}">
+                    </div>
+                </div>
+
+                <div class="gf-two-col">
+                    <div class="gf-col-left">
+                        <label class="gap-ed-label">Passage</label>
+                        <button class="btn-mark-gap" id="p-mark-gap">Mark Selected Text as Gap</button>
+                        <div class="gf-passage-scroll">
+                            <div id="p-passage-ed" contenteditable="true" class="p-passage-editor">${data?.passageHtml || ''}</div>
+                        </div>
+                    </div>
+                    <div class="gf-col-right">
+                        <label class="gap-ed-label">Gaps & Alternative Answers (separate with ;)</label>
+                        <div class="gf-gaps-scroll">
+                            <div id="p-gap-list"></div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            syncData();
+            attachEvents();
+        };
+
+        const syncData = () => {
+            const ed = root.querySelector('#p-passage-ed');
+            if (!ed) return;
+            
+            const markers = ed.querySelectorAll('.gap-marker');
+            
+            const newGaps = Array.from(markers).map((m, i) => {
+                const id = m.dataset.id || 'g' + Math.random().toString(36).substr(2, 5);
+                m.dataset.id = id;
+                m.dataset.index = i + 1; // Update visual index attribute
+
+                const existing = (data.gaps || []).find(g => g.id === id);
+                return existing || { id, answers: [m.textContent.trim()], caseSensitive: false };
+            });
+            
+            data.gaps = newGaps;
+            data.passageHtml = ed.innerHTML;
+            renderGapList();
+        };
+
+        const renderGapList = () => {
+            const listDiv = root.querySelector('#p-gap-list');
+            if (!listDiv) return;
+
+            listDiv.innerHTML = (data.gaps || []).map((g, i) => `
+                <div class="gap-list-row" data-idx="${i}" data-id="${g.id}">
+                    <div class="gap-idx-badge">${i + 1}</div>
+                    <input type="text" class="gap-ed-input p-gap-ans" 
+                        value="${escapeHtml(g.answers.join('; '))}" 
+                        placeholder="e.g. answer 1; alt answer">
+                    <label style="font-size:10px; display:flex; align-items:center; gap:3px; cursor:pointer">
+                        <input type="checkbox" class="p-gap-case" ${g.caseSensitive ? 'checked' : ''}> Case
+                    </label>
+                    <button class="btn-del-gap">×</button>
+                </div>
+            `).join('');
+
+            listDiv.querySelectorAll('.gap-list-row').forEach(row => {
+                const idx = row.dataset.idx;
+                
+                row.querySelector('.p-gap-ans').oninput = (e) => {
+                    if (data.gaps[idx]) {
+                        data.gaps[idx].answers = e.target.value.split(';').map(s => s.trim()).filter(s => s);
+                    }
+                };
+                
+                row.querySelector('.p-gap-case').onchange = (e) => {
+                    if (data.gaps[idx]) {
+                        data.gaps[idx].caseSensitive = e.target.checked;
+                    }
+                };
+                
+                row.querySelector('.btn-del-gap').onclick = () => {
+                    const id = row.dataset.id;
+                    const ed = root.querySelector('#p-passage-ed');
+                    const marker = ed.querySelector(`.gap-marker[data-id="${id}"]`);
+                    if (marker) {
+                        marker.outerHTML = marker.innerHTML; // Unwrap
+                        syncData();
+                    }
+                };
+            });
+        };
+
+        const attachEvents = () => {
+            const ed = root.querySelector('#p-passage-ed');
+            
+            root.querySelector('#p-gap-num').oninput = (e) => { data.numbering = e.target.value; };
+            root.querySelector('#p-gap-instr').oninput = (e) => { data.instructions = e.target.value; };
+
+            // Safe Selection Logic
+            root.querySelector('#p-mark-gap').onclick = () => {
+                const sel = window.getSelection();
+                if (sel.rangeCount && !sel.isCollapsed) {
+                    const range = sel.getRangeAt(0);
+                    // Check if selection is within the editor
+                    if (!ed.contains(range.commonAncestorContainer)) return;
+
+                    try {
+                        const content = range.extractContents();
+                        const span = document.createElement('span');
+                        span.className = 'gap-marker';
+                        span.appendChild(content);
+                        range.insertNode(span);
+                        sel.removeAllRanges();
+                        syncData();
+                    } catch (e) {
+                        console.warn('Selection invalid for gap marking', e);
+                    }
+                }
+            };
+
+            root.querySelector('#p-save-gap').onclick = () => {
+                data.passageHtml = ed.innerHTML;
+                ctx.updateBlock(ctx.blockId, data);
+            };
+
+            // Debounced Input Handler to prevent frequent re-renders
+            let debounceTimer;
+            ed.oninput = () => {
+                clearTimeout(debounceTimer);
+                debounceTimer = setTimeout(() => {
+                    syncData();
+                }, 200);
+            };
+        };
+
+        render();
+        return root;
+    }
+};
+
+function escapeHtml(str) {
+    return (str ?? '').toString()
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
+/* --- Initialization & Session Handling --- */
+
+const SESS_DATA = 'sys_editing_data';
+const SESS_STATUS = 'sys_editing_status';
+
+// ---- replaced getReturnUrl() with resolveReturnUrl() ----
+function resolveReturnUrl() {
+    const KEY = 'sys_return_url';
+    // 1) cached in sessionStorage
+    const sess = sessionStorage.getItem(KEY);
+    if (sess) return sess;
+
+    // 2) URL param 'returnUrl' (decode + save)
+    try {
+        const params = new URLSearchParams(window.location.search);
+        const p = params.get('returnUrl');
+        if (p) {
+            const decoded = decodeURIComponent(p);
+            sessionStorage.setItem(KEY, decoded);
+            return decoded;
+        }
+    } catch (e) {
+        // ignore param parsing errors
+    }
+
+    // 3) referrer heuristic: Test_Editor_ and testId=
+    const ref = document.referrer || '';
+    if (ref.includes('Test_Editor_') && ref.includes('testId=')) {
+        sessionStorage.setItem(KEY, ref);
+        return ref;
+    }
+
+    // 4) fallback
+    return 'Test_Editor_Shell.html';
+}
+
+/* --- Read data from sessionStorage or use safe default --- */
+const raw = sessionStorage.getItem(SESS_DATA);
+const data = raw ? JSON.parse(raw) : {
+    numbering: "Questions 1-3",
+    instructions: "Fill in the blank",
+    passageHtml: "<p>Select text and click Mark Selected Text as Gap.</p>",
+    gaps: []
+};
+
+// Context object to handle saving
+const ctx = {
+    blockId: 'temp', // ID is managed by the main editor, placeholder here
+    updateBlock: (id, newData) => {
+        sessionStorage.setItem(SESS_DATA, JSON.stringify(newData));
+        sessionStorage.setItem(SESS_STATUS, 'saved');
+        window.location.href = resolveReturnUrl();
+    }
+};
+
+// Set dynamic back link
+document.getElementById('btnBack').href = resolveReturnUrl();
+
+// Mount the editor
+document.getElementById('editor-mount').appendChild(gapFillBlock.renderEditorPanel(data, ctx));
+
+</script>
+</body>
+</html>

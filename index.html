@@ -3,35 +3,809 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>IELTS on Computer - Prototype</title>
-    <link rel="stylesheet" href="style.css">
+    <title>IELTS Mock Test Admin | Dashboard</title>
+    <style>
+        /* --- RESET & BASE --- */
+        :root {
+            --primary: #2563eb;
+            --primary-light: #eff6ff;
+            --secondary: #64748b;
+            --bg-body: #f8fafc;
+            --bg-card: #ffffff;
+            --border: #e2e8f0;
+            --text-main: #1e293b;
+            --text-muted: #64748b;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --sidebar-width: 260px;
+            --sidebar-collapsed-width: 80px;
+            --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            --radius: 12px;
+            --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+            --shadow-lg: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: var(--bg-body);
+            color: var(--text-main);
+            overflow: hidden;
+            height: 100vh;
+            display: flex;
+        }
+
+        button {
+            cursor: pointer;
+            font-family: inherit;
+            border: none;
+            background: none;
+            transition: var(--transition);
+        }
+
+        /* --- LAYOUT SHELL --- */
+        .sidebar {
+            width: var(--sidebar-width);
+            background: #ffffff;
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            transition: var(--transition);
+            z-index: 50;
+            flex-shrink: 0;
+        }
+
+        .sidebar.collapsed {
+            width: var(--sidebar-collapsed-width);
+        }
+
+        .main-container {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+            height: 100vh;
+        }
+
+        /* --- SIDEBAR COMPONENTS --- */
+        .sidebar-header {
+            height: 70px;
+            display: flex;
+            align-items: center;
+            padding: 0 20px;
+            border-bottom: 1px solid var(--border);
+            overflow: hidden;
+            white-space: nowrap;
+        }
+
+        .logo-icon {
+            width: 36px;
+            height: 36px;
+            background: linear-gradient(135deg, var(--primary) 0%, #1d47b6 100%);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 700;
+            flex-shrink: 0;
+            font-size: 18px;
+        }
+
+        .logo-text {
+            margin-left: 12px;
+            font-weight: 700;
+            font-size: 1rem;
+            color: var(--text-main);
+            transition: opacity 0.2s;
+            letter-spacing: -0.3px;
+        }
+
+        .sidebar.collapsed .logo-text {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .sidebar-nav {
+            padding: 16px 10px;
+            flex-grow: 1;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            padding: 10px 12px;
+            margin-bottom: 6px;
+            border-radius: 10px;
+            color: var(--text-muted);
+            text-decoration: none;
+            transition: var(--transition);
+            width: 100%;
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+
+        .nav-item:hover {
+            background-color: #f0f4f9;
+            color: var(--primary);
+        }
+
+        .nav-item.active {
+            background-color: #eff6ff;
+            color: var(--primary);
+            font-weight: 600;
+            border-left: 3px solid var(--primary);
+            padding-left: 9px;
+        }
+
+        .nav-icon {
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .nav-label {
+            margin-left: 12px;
+            font-size: 0.9rem;
+            transition: opacity 0.2s;
+            white-space: nowrap;
+        }
+
+        .sidebar.collapsed .nav-label {
+            opacity: 0;
+            display: none;
+        }
+
+        .sidebar-footer {
+            padding: 16px 10px;
+            border-top: 1px solid var(--border);
+        }
+
+        /* --- HEADER --- */
+        .header {
+            height: 70px;
+            background: #ffffff;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 32px;
+            flex-shrink: 0;
+        }
+
+        .header-search {
+            position: relative;
+            width: 280px;
+        }
+
+        .header-search input {
+            width: 100%;
+            padding: 8px 12px 8px 36px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            background: var(--bg-body);
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            outline: none;
+            transition: all 0.2s;
+        }
+
+        .header-search input:focus {
+            border-color: var(--primary);
+            background: white;
+            color: var(--text-main);
+        }
+
+        .header-search input::placeholder {
+            color: #cbd5e1;
+        }
+
+        .header-search::before {
+            content: "🔍";
+            position: absolute;
+            left: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 14px;
+            opacity: 0.5;
+        }
+
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .profile-trigger {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 12px;
+            border-radius: 50px;
+            border: 1px solid var(--border);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .profile-trigger:hover {
+            border-color: var(--primary);
+            background: var(--primary-light);
+        }
+
+        .avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--primary) 0%, #1d47b6 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            color: white;
+            font-size: 12px;
+        }
+
+        /* --- CONTENT AREA --- */
+        .content {
+            padding: 32px;
+            overflow-y: auto;
+            flex-grow: 1;
+        }
+
+        .page-header {
+            margin-bottom: 32px;
+        }
+
+        .page-title {
+            font-size: 26px;
+            font-weight: 700;
+            margin-bottom: 6px;
+            letter-spacing: -0.5px;
+        }
+
+        .page-desc {
+            color: var(--text-muted);
+            font-size: 14px;
+            font-weight: 400;
+        }
+
+        /* --- STAT CARDS --- */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 24px;
+            margin-bottom: 32px;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 24px;
+            border-radius: var(--radius);
+            border: 1px solid var(--border);
+            box-shadow: var(--shadow);
+        }
+
+        .stat-label {
+            color: var(--text-muted);
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .stat-value {
+            font-size: 28px;
+            font-weight: 700;
+            margin-top: 8px;
+            letter-spacing: -1px;
+        }
+
+        /* --- PANELS & TABLES --- */
+        .panel {
+            background: white;
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            overflow: hidden;
+            box-shadow: var(--shadow);
+        }
+
+        .panel-header {
+            padding: 20px 24px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .panel-title {
+            font-weight: 600;
+            font-size: 16px;
+            color: var(--text-main);
+        }
+
+        .table-container {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+        }
+
+        th {
+            background: #fcfcfd;
+            padding: 12px 24px;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        td {
+            padding: 14px 24px;
+            border-bottom: 1px solid var(--border);
+            font-size: 14px;
+        }
+
+        /* --- EMPTY STATE --- */
+        .empty-state {
+            padding: 48px 24px;
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 14px;
+        }
+
+        .empty-state svg {
+            margin-bottom: 12px;
+            opacity: 0.25;
+        }
+
+        /* --- TABS --- */
+        .tab-pane {
+            display: none;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .tab-pane.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* --- BUTTONS --- */
+        .btn {
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 13px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            border: 1px solid transparent;
+            outline: none;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn:focus-visible {
+            outline: 2px solid var(--primary);
+            outline-offset: 2px;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #1d4ed8;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(37, 99, 235, 0.2);
+        }
+
+        .btn-outline {
+            border: 1px solid var(--border);
+            color: var(--text-main);
+            background: white;
+        }
+
+        .btn-outline:hover {
+            background: var(--bg-body);
+        }
+
+        /* --- UTILS --- */
+        .layout-with-sidebar {
+            display: grid;
+            grid-template-columns: 1fr 320px;
+            gap: 24px;
+        }
+
+        /* --- QUICK LAUNCH GRID --- */
+        .quick-launch-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 24px;
+        }
+
+        .launch-card {
+            background: white;
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 28px 24px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            transition: all 0.2s;
+            box-shadow: var(--shadow);
+        }
+
+        .launch-card:hover {
+            border-color: var(--primary);
+            box-shadow: var(--shadow-lg);
+            transform: translateY(-2px);
+        }
+
+        .launch-icon {
+            width: 56px;
+            height: 56px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--primary-light);
+            border-radius: 12px;
+            margin-bottom: 16px;
+            color: var(--primary);
+        }
+
+        .launch-card h3 {
+            font-size: 18px;
+            font-weight: 700;
+            margin-bottom: 8px;
+            color: var(--text-main);
+            letter-spacing: -0.3px;
+        }
+
+        .launch-card p {
+            font-size: 13px;
+            line-height: 1.5;
+            color: var(--text-muted);
+            margin-bottom: 20px;
+        }
+
+        .launch-card .btn {
+            margin-top: auto;
+        }
+
+        #toast-container {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            z-index: 1000;
+        }
+
+        .toast {
+            background: #1e293b;
+            color: white;
+            padding: 12px 20px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            animation: slideIn 0.3s ease-out;
+            font-size: 14px;
+            box-shadow: var(--shadow-lg);
+        }
+
+        @keyframes slideIn {
+            from { transform: translateX(400px); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+
+        @media (max-width: 1200px) {
+            .quick-launch-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 980px) {
+            .sidebar {
+                width: var(--sidebar-collapsed-width);
+            }
+            .sidebar .nav-label,
+            .sidebar .logo-text {
+                display: none;
+            }
+            .layout-with-sidebar {
+                grid-template-columns: 1fr;
+            }
+            .nav-item.active {
+                border-left: none;
+                padding-left: 12px;
+            }
+        }
+    </style>
 </head>
 <body>
 
-    <!-- ROLE SELECTION PAGE -->
-    <div id="role-selection">
-        <h1>IELTS on Computer</h1>
-        <p>Select your role to continue</p>
-        <div class="role-grid">
-            <a href="test_builder/pages/builder-tests.html" class="role-card">
-                <h3>Test Builder</h3>
-                <small>Create and manage exams</small>
-            </a>
-            <a href="#/taker" class="role-card">
-                <h3>Test Taker</h3>
-                <small>Practice and take official tests</small>
-            </a>
-            <a href="#/proctor" class="role-card">
-                <h3>Test Proctor</h3>
-                <small>Manage live test sessions</small>
-            </a>
-            <a href="#/examiner" class="role-card">
-                <h3>Examiner</h3>
-                <small>Grade and review attempts</small>
-            </a>
+    <!-- SIDEBAR -->
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <div class="logo-icon">I</div>
+            <span class="logo-text">IELTS Admin</span>
         </div>
-    </div>
-    <!-- Other app shell elements from your original file are omitted for this example -->
+        <nav class="sidebar-nav">
+            <button class="nav-item active" data-tab="dashboard">
+                <!-- Dashboard icon -->
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="3" y="3" width="7" height="7"></rect>
+                    <rect x="14" y="3" width="7" height="7"></rect>
+                    <rect x="14" y="14" width="7" height="7"></rect>
+                    <rect x="3" y="14" width="7" height="7"></rect>
+                </svg>
+                <span class="nav-label">Dashboard</span>
+            </button>
 
+            <button class="nav-item" onclick="window.location.href='editor/html/Test_Editor_Shell.html'">
+                <!-- Tests icon -->
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                    <polyline points="14 2 14 8 20 8"></polyline>
+                    <line x1="16" y1="13" x2="8" y2="13"></line>
+                    <line x1="16" y1="17" x2="8" y2="17"></line>
+                    <polyline points="10 9 9 9 8 9"></polyline>
+                </svg>
+                <span class="nav-label">Test Editor</span>
+            </button>
+
+            <button class="nav-item" onclick="window.location.href='editor/html/Exam_Shell.html'">
+                <!-- Exams icon -->
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path>
+                    <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path>
+                </svg>
+                <span class="nav-label">Exam Packages</span>
+            </button>
+
+            <button class="nav-item" onclick="window.location.href='proctor/Proctor_Sessions.html'">
+                <!-- Proctor icon -->
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <polyline points="12 6 12 12 16 14"></polyline>
+                </svg>
+                <span class="nav-label">Proctoring</span>
+            </button>
+
+            <button class="nav-item" onclick="window.location.href='candidate/html/Candidate_Entry.html'">
+                <!-- Candidate Portal icon -->
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                    <circle cx="12" cy="7" r="4"></circle>
+                </svg>
+                <span class="nav-label">Candidate Portal</span>
+            </button>
+
+            <button class="nav-item" onclick="window.location.href='proctor/Proctor_Candidates.html'">
+                <!-- Candidates Management icon -->
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                    <circle cx="9" cy="7" r="4"></circle>
+                    <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                    <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                </svg>
+                <span class="nav-label">Candidates</span>
+            </button>
+
+            <button class="nav-item" onclick="window.location.href='examiner/html/Examiner_Shell.html'">
+                <!-- Examiner icon -->
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 2l7 4v6c0 5-3.5 9.74-7 10-3.5-.26-7-5-7-10V6l7-4z"></path>
+                    <path d="M9 12l2 2 4-4"></path>
+                </svg>
+                <span class="nav-label">Examiner</span>
+            </button>
+        </nav>
+        <div class="sidebar-footer">
+            <button class="nav-item" onclick="toggleSidebar()">
+                <span class="nav-icon"><svg id="sidebar-toggle-icon" width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M11 19l-7-7 7-7m8 14l-7-7 7-7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg></span>
+                <span class="nav-label">Collapse</span>
+            </button>
+        </div>
+    </aside>
+
+    <div class="main-container">
+        <!-- HEADER -->
+        <header class="header">
+            <div class="header-search">
+                <input type="text" placeholder="Search...">
+            </div>
+            <div class="header-actions">
+                <div class="profile-trigger">
+                    <div class="avatar">AD</div>
+                    <span style="font-size: 13px; font-weight: 600;">Admin User</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- MAIN CONTENT -->
+        <main class="content">
+            
+            <!-- EDITOR TAB (DEFAULT/HOME) -->
+            <div id="editor" class="tab-pane active">
+                <div class="page-header">
+                    <h1 class="page-title">Dashboard</h1>
+                    <p class="page-desc">Manage your IELTS mock test system and track exam operations.</p>
+                </div>
+
+                <div class="quick-launch-grid">
+                    <div class="launch-card">
+                        <div class="launch-icon" style="background: #eff6ff; color: #2563eb;">
+                            <svg width="28" height="28" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+                        </div>
+                        <h3>Test Editor</h3>
+                        <p>Create and manage Listening, Reading, Writing, and Speaking tests. Build comprehensive mock exams with detailed content.</p>
+                        <button class="btn btn-primary" onclick="window.location.href='editor/html/Test_Editor_Shell.html'">Open Test Editor</button>
+                    </div>
+
+                    <div class="launch-card">
+                        <div class="launch-icon" style="background: #fef3c7; color: #d97706;">
+                            <svg width="28" height="28" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+                        </div>
+                        <h3>Exam Builder</h3>
+                        <p>Combine multiple skill tests into complete exam packages. Create session bundles for organized test administration.</p>
+                        <button class="btn btn-primary" style="background: #d97706;" onclick="window.location.href='editor/html/Exam_Shell.html'">Open Exam Builder</button>
+                    </div>
+
+                    <div class="launch-card">
+                        <div class="launch-icon" style="background: #dcfce7; color: #16a34a;">
+                            <svg width="28" height="28" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                        </div>
+                        <h3>Proctoring</h3>
+                        <p>Monitor live test sessions in real time. Track candidate progress and manage exam room security and integrity.</p>
+                        <button class="btn btn-primary" style="background: #16a34a;" onclick="window.location.href='proctor/Proctor_Sessions.html'">Manage Sessions</button>
+                    </div>
+
+                    <div class="launch-card">
+                        <div class="launch-icon" style="background: #f3e8ff; color: #9333ea;">
+                            <svg width="28" height="28" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path d="M17 20h5v-2a3 3 0 00-5.856-1.487M15 6a3 3 0 11-6 0 3 3 0 016 0zM15 16a6 6 0 00-12 0v4h12v-4z" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+                        </div>
+                        <h3>Candidate Portal</h3>
+                        <p>Provide candidates with secure access to exams. Let them check results and review performance feedback.</p>
+                        <button class="btn btn-primary" style="background: #9333ea;" onclick="window.location.href='candidate/html/Candidate_Entry.html'">Open Portal</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- PROCTOR TAB -->
+            <div id="proctor" class="tab-pane">
+                <div class="page-header">
+                    <h1 class="page-title">Session Operations</h1>
+                    <p class="page-desc">Monitor live sessions and manage exam rooms.</p>
+                </div>
+                
+                <!-- Proctor Tools -->
+                <div style="display: flex; gap: 16px; margin-bottom: 24px;">
+                    <button class="btn btn-primary" style="flex: 1; padding: 10px 16px; justify-content: center;" onclick="window.location.href='Proctor_Candidates.html'">
+                        <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" stroke-width="2"></path></svg>
+                        <span>Manage Candidates</span>
+                    </button>
+                    <button class="btn btn-primary" style="flex: 1; padding: 10px 16px; justify-content: center;" onclick="window.location.href='Proctor_Sessions.html'">
+                        <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" stroke-width="2"></path><path d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" stroke-width="2"></path></svg>
+                        <span>Manage Sessions</span>
+                    </button>
+                </div>
+
+                <div class="layout-with-sidebar">
+                    <div class="panel">
+                        <div class="panel-header">
+                            <span class="panel-title">Active Sessions</span>
+                            <button class="btn btn-primary">Create Session</button>
+                        </div>
+                        <div class="empty-state">
+                            <svg width="48" height="48" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" stroke-width="2"></path></svg>
+                            <p>No sessions are currently scheduled or live.</p>
+                        </div>
+                    </div>
+                    <aside>
+                        <div class="panel" style="padding: 20px;">
+                            <h3 style="font-size: 15px; font-weight: 600; margin-bottom: 12px;">Live Monitor</h3>
+                            <p style="font-size: 13px; color: var(--text-muted); line-height: 1.5;">Connect to a room to see live activity, candidate status, and session metrics.</p>
+                        </div>
+                    </aside>
+                </div>
+            </div>
+
+            <!-- CANDIDATE TAB -->
+            <div id="candidate" class="tab-pane">
+                <div class="page-header">
+                    <h1 class="page-title">Candidates</h1>
+                    <p class="page-desc">Manage test-taker profiles and access credentials.</p>
+                </div>
+                <div class="panel">
+                    <div class="panel-header">
+                        <input type="text" placeholder="Filter candidates..." class="btn-outline" style="padding: 8px 12px; border-radius: 8px; width: 300px;">
+                        <button class="btn btn-primary">Add Candidate</button>
+                    </div>
+                    <div class="table-container">
+                        <table>
+                            <thead><tr><th>Name</th><th>Exam Code</th><th>Date</th><th>Status</th><th>Actions</th></tr></thead>
+                            <tbody>
+                                <tr><td colspan="5" class="empty-state">No candidates registered in the system.</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- EXAMINER TAB -->
+            <div id="examiner" class="tab-pane">
+                <div class="page-header">
+                    <h1 class="page-title">Marking Queue</h1>
+                    <p class="page-desc">Manage assessments and examiner assignments.</p>
+                </div>
+                <div class="stats-grid">
+                    <div class="stat-card"><div class="stat-label">Pending Reviews</div><div class="stat-value">0</div></div>
+                    <div class="stat-card"><div class="stat-label">Assigned Examiners</div><div class="stat-value">0</div></div>
+                </div>
+                <div class="panel">
+                    <div class="panel-header"><span class="panel-title">Waiting for Marking</span></div>
+                    <div class="table-container">
+                        <table>
+                            <thead><tr><th>Candidate</th><th>Task</th><th>Submitted</th><th>Priority</th><th>Actions</th></tr></thead>
+                            <tbody>
+                                <tr><td colspan="5" class="empty-state">The marking queue is currently empty.</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <div id="toast-container"></div>
+
+    <script>
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const icon = document.getElementById('sidebar-toggle-icon');
+            sidebar.classList.toggle('collapsed');
+            if (sidebar.classList.contains('collapsed')) {
+                icon.innerHTML = '<path d="M13 5l7 7-7 7M5 5l7 7-7 7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>';
+            } else {
+                icon.innerHTML = '<path d="M11 19l-7-7 7-7m8 14l-7-7 7-7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>';
+            }
+        }
+
+        function showToast(message) {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = 'toast';
+            toast.innerHTML = `<span>${message}</span>`;
+            container.appendChild(toast);
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                setTimeout(() => toast.remove(), 400);
+            }, 3000);
+        }
+
+        window.onload = () => showToast('Dashboard Ready. Editor available.');
+    </script>
 </body>
 </html>

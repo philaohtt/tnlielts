@@ -1,0 +1,997 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Proctor • Sessions</title>
+    <style>
+        :root {
+            --bg-body: #f3f4f6;
+            --bg-panel: #ffffff;
+            --border: #e5e7eb;
+            --primary: #2563eb;
+            --primary-hover: #1d4ed8;
+            --text-main: #111827;
+            --text-sub: #6b7280;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --danger-hover: #dc2626;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            margin: 0;
+            background-color: var(--bg-body);
+            color: var(--text-main);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* HEADER */
+        header {
+            background: var(--bg-panel);
+            border-bottom: 1px solid var(--border);
+            padding: 0 1.5rem;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-shrink: 0;
+        }
+
+        header h1 {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin: 0;
+        }
+
+        .nav-buttons a, .nav-buttons button {
+            text-decoration: none;
+            color: var(--text-main);
+            background: white;
+            border: 1px solid var(--border);
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            font-size: 0.875rem;
+            font-weight: 500;
+            cursor: pointer;
+            margin-left: 0.5rem;
+            transition: background 0.2s;
+        }
+        .nav-buttons a:hover { background: var(--bg-body); }
+
+        /* SPLIT VIEW */
+        .split-view {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        /* LEFT PANEL */
+        aside {
+            width: 350px;
+            background: var(--bg-panel);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            flex-shrink: 0;
+        }
+
+        .filter-bar {
+            padding: 1rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        #filterBar {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 0.75rem;
+        }
+
+        .filter-btn {
+            flex: 1;
+            padding: 0.25rem;
+            font-size: 0.75rem;
+            border: 1px solid var(--border);
+            background: transparent;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .filter-btn.active {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+
+        #scheduleSearch {
+            width: 100%;
+            padding: 0.5rem;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+        }
+
+        #scheduleList {
+            flex: 1;
+            overflow-y: auto;
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .schedule-item {
+            padding: 1rem;
+            border-bottom: 1px solid var(--border);
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .schedule-item:hover { background-color: var(--bg-body); }
+        .schedule-item.selected { background-color: #eff6ff; border-left: 4px solid var(--primary); }
+
+        .item-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.25rem; }
+        .item-title { font-weight: 600; font-size: 0.95rem; }
+        .item-time { font-size: 0.8rem; color: var(--text-sub); }
+        
+        /* RIGHT PANEL */
+        main {
+            flex: 1;
+            overflow-y: auto;
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .empty-state {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: var(--text-sub);
+        }
+
+        .detail-header {
+            background: var(--bg-panel);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+
+        .dh-top { display: flex; justify-content: space-between; align-items: start; margin-bottom: 1rem; }
+        #detailTitle { margin: 0; font-size: 1.5rem; }
+        #detailMeta { color: var(--text-sub); font-size: 0.9rem; margin-top: 0.25rem; }
+
+        .timer-box {
+            background: #1f2937;
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            font-family: monospace;
+            font-size: 1.25rem;
+            font-weight: 700;
+        }
+
+        .controls-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            align-items: center;
+            border-top: 1px solid var(--border);
+            padding-top: 1rem;
+        }
+
+        .btn {
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            border: none;
+            font-size: 0.875rem;
+            font-weight: 500;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.25rem;
+        }
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-primary:hover { background: var(--primary-hover); }
+        .btn-sec { background: white; border: 1px solid var(--border); color: var(--text-main); }
+        .btn-sec:hover { background: var(--bg-body); }
+        .btn-danger { background: var(--danger); color: white; }
+        .btn-danger:hover { background: var(--danger-hover); }
+        .btn-sm { padding: 0.25rem 0.5rem; font-size: 0.75rem; }
+
+        /* ROSTER TABLE */
+        .roster-container {
+            background: var(--bg-panel);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 0.75rem 1rem; text-align: left; border-bottom: 1px solid var(--border); }
+        th { background: #f9fafb; font-weight: 600; font-size: 0.8rem; color: var(--text-sub); text-transform: uppercase; }
+        td { font-size: 0.9rem; vertical-align: middle; }
+        tr:last-child td { border-bottom: none; }
+
+        /* PILLS */
+        .pill { padding: 0.25rem 0.6rem; border-radius: 99px; font-size: 0.7rem; font-weight: 600; text-transform: uppercase; }
+        .pill-scheduled { background: #e0f2fe; color: #0369a1; }
+        .pill-live { background: #d1fae5; color: #047857; }
+        .pill-paused { background: #fef3c7; color: #b45309; }
+        .pill-ended { background: #f3f4f6; color: #4b5563; }
+        .pill-absent { background: #fee2e2; color: #b91c1c; }
+        .pill-present { background: #ecfdf5; color: #059669; }
+
+        /* STATUS BADGE - Prominent at top */
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.75rem 1.25rem;
+            border-radius: 8px;
+            font-size: 1.125rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 1rem;
+        }
+        .status-badge-live {
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: white;
+            box-shadow: 0 4px 6px rgba(16, 185, 129, 0.3);
+        }
+        .status-badge-paused {
+            background: linear-gradient(135deg, #f59e0b, #d97706);
+            color: white;
+            box-shadow: 0 4px 6px rgba(245, 158, 11, 0.3);
+        }
+        .status-badge-ended {
+            background: #e5e7eb;
+            color: #6b7280;
+            border: 2px solid #d1d5db;
+        }
+        .status-badge-scheduled {
+            background: linear-gradient(135deg, #3b82f6, #2563eb);
+            color: white;
+            box-shadow: 0 4px 6px rgba(37, 99, 235, 0.3);
+        }
+        .status-badge::before {
+            content: '';
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: currentColor;
+            animation: pulse-dot 2s ease-in-out infinite;
+        }
+        .status-badge-ended::before,
+        .status-badge-scheduled::before {
+            animation: none;
+        }
+        @keyframes pulse-dot {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.6; transform: scale(0.9); }
+        }
+
+        /* COLLAPSIBLE DETAILS */
+        .details-section {
+            margin-top: 1rem;
+            border-top: 1px solid var(--border);
+            padding-top: 0.5rem;
+        }
+        .details-toggle {
+            background: none;
+            border: none;
+            color: var(--primary);
+            font-size: 0.875rem;
+            font-weight: 500;
+            cursor: pointer;
+            padding: 0.5rem 0;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: color 0.2s;
+        }
+        .details-toggle:hover { color: var(--primary-hover); }
+        .details-toggle-icon {
+            transition: transform 0.2s;
+            font-size: 0.75rem;
+        }
+        .details-toggle.expanded .details-toggle-icon {
+            transform: rotate(90deg);
+        }
+        .details-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease-out;
+        }
+        .details-content.visible {
+            max-height: 500px;
+        }
+        .details-grid {
+            display: grid;
+            grid-template-columns: auto 1fr;
+            gap: 0.5rem 1rem;
+            padding: 1rem 0;
+            font-size: 0.875rem;
+        }
+        .details-label {
+            color: var(--text-sub);
+            font-weight: 500;
+        }
+        .details-value {
+            color: var(--text-main);
+            font-family: monospace;
+        }
+
+        /* MODAL */
+        dialog {
+            border: none;
+            border-radius: 8px;
+            padding: 1.5rem;
+            box-shadow: 0 10px 15px rgba(0,0,0,0.1);
+            width: 400px;
+            max-width: 90vw;
+        }
+        dialog::backdrop { background: rgba(0,0,0,0.5); }
+        .form-group { margin-bottom: 1rem; }
+        .form-group label { display: block; margin-bottom: 0.25rem; font-size: 0.875rem; font-weight: 500; }
+        .form-group input { width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px; }
+        .modal-actions { display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1.5rem; }
+
+        /* TOAST */
+        #toast {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: #333;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 6px;
+            opacity: 0;
+            transition: opacity 0.3s;
+            pointer-events: none;
+            z-index: 1000;
+        }
+        #toast.show { opacity: 1; }
+
+        /* Create Button in Sidebar */
+        .create-btn-container { padding: 1rem; border-top: 1px solid var(--border); margin-top: auto; }
+        #createScheduleBtn { width: 100%; justify-content: center; }
+    </style>
+</head>
+<body>
+
+<header>
+    <h1>Proctor • Sessions</h1>
+    <div class="nav-buttons">
+        <button onclick="window.location.href='Proctor_Candidates.html'">Candidates</button>
+        <button onclick="window.location.href='index.html'">Back to Dashboard</button>
+    </div>
+</header>
+
+<div class="split-view">
+    <!-- LEFT PANEL: LIST -->
+    <aside>
+        <div class="filter-bar">
+            <div id="filterBar">
+                <button class="filter-btn active" data-filter="all">All</button>
+                <button class="filter-btn" data-filter="upcoming">Upcoming</button>
+                <button class="filter-btn" data-filter="live">Live</button>
+                <button class="filter-btn" data-filter="past">Past</button>
+            </div>
+            <input type="text" id="scheduleSearch" placeholder="Search sessions...">
+        </div>
+
+        <ul id="scheduleList">
+            <!-- Items injected by JS -->
+        </ul>
+
+        <div class="create-btn-container">
+            <button id="createScheduleBtn" class="btn btn-primary">+ Create Schedule</button>
+        </div>
+    </aside>
+
+    <!-- RIGHT PANEL: DETAIL -->
+    <main id="mainPanel">
+        <div id="emptyState" class="empty-state">Select a schedule to view details</div>
+        
+        <!-- Detail Content (Hidden by default) -->
+        <div id="detailContainer" style="display:none; width: 100%;">
+            
+            <div class="detail-header">
+                <!-- STATUS FIRST - Prominent -->
+                <div id="statusBadge" class="status-badge status-badge-scheduled">
+                    <span id="statusText">Scheduled</span>
+                </div>
+
+                <div id="timerContainer" class="timer-box" style="display: none; margin-bottom: 1rem;">
+                    <span id="timeLeft">--:--:--</span>
+                </div>
+
+                <!-- SESSION INFO -->
+                <div style="margin-bottom: 1rem;">
+                    <h2 id="detailTitle" style="margin: 0 0 0.5rem 0; font-size: 1.5rem;">Session Title</h2>
+                    <div id="detailMeta" style="color: var(--text-sub); font-size: 0.95rem;">Time Range</div>
+                </div>
+
+                <!-- COLLAPSIBLE TECHNICAL DETAILS -->
+                <div class="details-section">
+                    <button class="details-toggle" id="detailsToggle">
+                        <span class="details-toggle-icon">▶</span>
+                        <span>Technical Details</span>
+                    </button>
+                    <div class="details-content" id="detailsContent">
+                        <div class="details-grid">
+                            <span class="details-label">Schedule ID:</span>
+                            <span class="details-value" id="detailScheduleId">-</span>
+                            <span class="details-label">Exam ID:</span>
+                            <span class="details-value" id="detailExamId">-</span>
+                            <span class="details-label">Created:</span>
+                            <span class="details-value" id="detailCreatedAt">-</span>
+                            <span class="details-label">Duration:</span>
+                            <span class="details-value" id="detailDuration">-</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="dh-top" style="margin-top: 1rem;">
+                    <div></div>
+
+                <div class="controls-row">
+                    <!-- Dynamic Buttons based on status -->
+                    <button id="btnStartNow" class="btn btn-primary btn-sm">Start Now</button>
+                    <button id="btnPause" class="btn btn-sec btn-sm">Pause</button>
+                    <button id="btnResume" class="btn btn-primary btn-sm">Resume</button>
+                    
+                    <div style="width: 1px; height: 24px; background: var(--border); margin: 0 0.5rem;"></div>
+
+                    <button id="btnAdd5" class="btn btn-sec btn-sm">+5m</button>
+                    <button id="btnAdd10" class="btn btn-sec btn-sm">+10m</button>
+                    <button id="btnSub5" class="btn btn-sec btn-sm">-5m</button>
+                    <button id="btnSub10" class="btn btn-sec btn-sm">-10m</button>
+
+                    <div style="flex:1"></div>
+
+                    <button id="btnEndNow" class="btn btn-danger btn-sm">End Now</button>
+                    <button id="btnDeleteSchedule" class="btn btn-danger btn-sm">Delete</button>
+                </div>
+            </div>
+
+            <div class="roster-container">
+                <table id="rosterTable">
+                    <thead>
+                        <tr>
+                            <th>Candidate</th>
+                            <th>ID</th>
+                            <th>Class</th>
+                            <th>Roster Status</th>
+                            <th>Exam Status</th>
+                            <th>Extra Time</th>
+                            <th style="text-align: right;">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- Rows injected by JS -->
+                    </tbody>
+                </table>
+            </div>
+
+        </div>
+    </main>
+</div>
+
+<!-- MODAL: Create Schedule -->
+<dialog id="createModal">
+    <h3 style="margin-top:0;">Create Schedule</h3>
+    <div class="form-group">
+        <label>Title</label>
+        <input type="text" id="createTitle" placeholder="e.g. IELTS Reading Slot 1">
+    </div>
+    <div class="form-group">
+        <label>Exam Package</label>
+        <select id="createExamId">
+            <option value="">-- Select an exam --</option>
+        </select>
+    </div>
+    <div class="form-group">
+        <label>Start At</label>
+        <input type="datetime-local" id="createStart">
+    </div>
+    <div class="form-group">
+        <label>End At</label>
+        <input type="datetime-local" id="createEnd">
+    </div>
+    <div class="form-group">
+        <label>Duration (Minutes)</label>
+        <input type="number" id="createDuration" value="60">
+    </div>
+    <div class="modal-actions">
+        <button id="createCancel" class="btn btn-sec">Cancel</button>
+        <button id="createConfirm" class="btn btn-primary">Create</button>
+    </div>
+</dialog>
+
+<div id="toast">Action Saved</div>
+
+<script type="module">
+    import { 
+        listSchedules, getSchedule, observeSchedules, observeSchedule,
+        listRoster, observeRoster,
+        createSchedule, updateSchedule, deleteSchedule,
+        startScheduleNow, endScheduleNow, pauseSchedule, resumeSchedule, addScheduleTime,
+        setRosterStatus, setCandidateStatus, addCandidateTime, forceSubmitCandidate, unlockCandidate
+    } from '../db/db.proctor.js';
+    import { EXAMS } from '../db/db.exams.js';
+
+    // --- STATE ---
+    let state = {
+        schedules: [],
+        exams: [],
+        filter: 'all', // all, upcoming, live, past
+        search: '',
+        selectedId: null,
+        scheduleSub: null, // Subscription to list
+        detailSub: null,   // Subscription to single schedule
+        rosterSub: null,   // Subscription to roster
+        timerInterval: null
+    };
+
+    // --- DOM ELEMENTS ---
+    const els = {
+        filterBar: document.getElementById('filterBar'),
+        search: document.getElementById('scheduleSearch'),
+        list: document.getElementById('scheduleList'),
+        createBtn: document.getElementById('createScheduleBtn'),
+        mainPanel: document.getElementById('mainPanel'),
+        emptyState: document.getElementById('emptyState'),
+        detailContainer: document.getElementById('detailContainer'),
+        
+        // Detail
+        detailTitle: document.getElementById('detailTitle'),
+        detailMeta: document.getElementById('detailMeta'),
+        timeLeft: document.getElementById('timeLeft'),
+        timerContainer: document.getElementById('timerContainer'),
+        
+        // Controls
+        btnStartNow: document.getElementById('btnStartNow'),
+        btnPause: document.getElementById('btnPause'),
+        btnResume: document.getElementById('btnResume'),
+        btnAdd5: document.getElementById('btnAdd5'),
+        btnAdd10: document.getElementById('btnAdd10'),
+        btnSub5: document.getElementById('btnSub5'),
+        btnSub10: document.getElementById('btnSub10'),
+        btnEndNow: document.getElementById('btnEndNow'),
+        btnDelete: document.getElementById('btnDeleteSchedule'),
+
+        // Roster
+        rosterTable: document.getElementById('rosterTable').querySelector('tbody'),
+
+        // Modal
+        modal: document.getElementById('createModal'),
+        mTitle: document.getElementById('createTitle'),
+        mExamId: document.getElementById('createExamId'),
+        mStart: document.getElementById('createStart'),
+        mEnd: document.getElementById('createEnd'),
+        mDuration: document.getElementById('createDuration'),
+        mConfirm: document.getElementById('createConfirm'),
+        mCancel: document.getElementById('createCancel'),
+
+        toast: document.getElementById('toast')
+    };
+
+    // --- INITIALIZATION ---
+    document.addEventListener('DOMContentLoaded', () => {
+        initExams();
+        initList();
+        initModal();
+        initControls();
+    });
+
+    // --- LOAD EXAMS ---
+    async function initExams() {
+        try {
+            const allExams = await EXAMS.listExams();
+            // Show published exams, optionally mark drafts
+            state.exams = allExams.filter(e => e.status === 'published');
+            
+            // Populate dropdown
+            els.mExamId.innerHTML = '<option value="">-- Select an exam --</option>';
+            state.exams.forEach(exam => {
+                const opt = document.createElement('option');
+                opt.value = exam.id;
+                opt.textContent = exam.title || '(Untitled)';
+                els.mExamId.appendChild(opt);
+            });
+        } catch (e) {
+            console.error('Failed to load exams:', e);
+        }
+    }
+
+    // --- TOAST ---
+    function showToast(msg) {
+        els.toast.textContent = msg;
+        els.toast.classList.add('show');
+        setTimeout(() => els.toast.classList.remove('show'), 3000);
+    }
+
+    // --- SCHEDULE LIST LOGIC ---
+    function initList() {
+        // Observe real-time changes
+        state.scheduleSub = observeSchedules((data) => {
+            state.schedules = data;
+            renderList();
+        });
+
+        // Filter clicks
+        els.filterBar.addEventListener('click', (e) => {
+            if (e.target.classList.contains('filter-btn')) {
+                document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+                e.target.classList.add('active');
+                state.filter = e.target.dataset.filter;
+                renderList();
+            }
+        });
+
+        // Search input
+        els.search.addEventListener('input', (e) => {
+            state.search = e.target.value.toLowerCase();
+            renderList();
+        });
+    }
+
+    function renderList() {
+        const now = new Date();
+        const filtered = state.schedules.filter(s => {
+            // Text Search
+            if (!s.title.toLowerCase().includes(state.search)) return false;
+
+            // Tab Filter
+            if (state.filter === 'all') return true;
+            if (state.filter === 'upcoming') return s.status === 'upcoming';
+            if (state.filter === 'live') return s.status === 'live';
+            if (state.filter === 'past') return s.status === 'ended';
+            return true;
+        });
+
+        // Sort: Live first, then upcoming (soonest), then past (recent)
+        filtered.sort((a, b) => {
+            const aTime = a.startAt?.toDate ? a.startAt.toDate().getTime() : new Date(a.startAt).getTime();
+            const bTime = b.startAt?.toDate ? b.startAt.toDate().getTime() : new Date(b.startAt).getTime();
+            return bTime - aTime;
+        });
+
+        els.list.innerHTML = '';
+        filtered.forEach(s => {
+            const li = document.createElement('li');
+            li.className = `schedule-item ${state.selectedId === s.id ? 'selected' : ''}`;
+            li.onclick = () => selectSchedule(s.id);
+
+            const startDate = s.startAt?.toDate ? s.startAt.toDate() : new Date(s.startAt);
+            const dateStr = startDate.toLocaleString(undefined, { month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' });
+            
+            let statusClass = 'pill-scheduled';
+            let statusText = s.status;
+            
+            if (s.status === 'live' && s.paused) {
+                statusClass = 'pill-paused';
+                statusText = 'paused';
+            } else if (s.status === 'live') {
+                statusClass = 'pill-live';
+            } else if (s.status === 'ended') {
+                statusClass = 'pill-ended';
+            } else if (s.status === 'upcoming') {
+                statusClass = 'pill-scheduled';
+            }
+
+            li.innerHTML = `
+                <div class="item-header">
+                    <span class="item-title">${s.title}</span>
+                    <span class="pill ${statusClass}">${statusText}</span>
+                </div>
+                <div class="item-time">${dateStr}</div>
+            `;
+            els.list.appendChild(li);
+        });
+    }
+
+    // --- CREATE MODAL ---
+    function initModal() {
+        els.createBtn.onclick = () => {
+            // Default times
+            const now = new Date();
+            now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+            const startStr = now.toISOString().slice(0,16);
+            const end = new Date(now.getTime() + 60*60000); // +1 hour
+            const endStr = end.toISOString().slice(0,16);
+
+            els.mTitle.value = '';
+            els.mExamId.value = '';
+            els.mStart.value = startStr;
+            els.mEnd.value = endStr;
+            els.mDuration.value = 60;
+            els.modal.showModal();
+        };
+
+        els.mCancel.onclick = () => els.modal.close();
+
+        els.mConfirm.onclick = async () => {
+            const durationMin = parseInt(els.mDuration.value) || 60;
+            const data = {
+                title: els.mTitle.value,
+                startAt: new Date(els.mStart.value).toISOString(),
+                endAt: new Date(els.mEnd.value).toISOString(),
+                durationMs: durationMin * 60000,
+                examId: els.mExamId.value || null
+            };
+            try {
+                await createSchedule(data);
+                els.modal.close();
+                showToast('Schedule created');
+            } catch (e) {
+                alert('Error creating schedule: ' + e.message);
+            }
+        };
+    }
+
+    // --- DETAIL VIEW ---
+    function selectSchedule(id) {
+        // Cleanup previous subscriptions
+        if (state.detailSub) state.detailSub();
+        if (state.rosterSub) state.rosterSub();
+        if (state.timerInterval) clearInterval(state.timerInterval);
+
+        state.selectedId = id;
+        renderList(); // Update selected highlight in list
+
+        // Show detail view, hide empty state
+        els.emptyState.style.display = 'none';
+        els.detailContainer.style.display = 'block';
+
+        // Subscribe to Schedule Detail
+        state.detailSub = observeSchedule(id, (sched) => {
+            if (!sched) {
+                // Schedule was deleted - show empty state
+                els.detailContainer.style.display = 'none';
+                els.emptyState.style.display = 'flex';
+                state.selectedId = null;
+                return;
+            }
+            renderDetailHeader(sched);
+        });
+
+        // Subscribe to Roster
+        state.rosterSub = observeRoster(id, (roster) => {
+            renderRosterTable(roster);
+        });
+    }
+
+    function renderDetailHeader(s) {
+        els.detailTitle.textContent = s.title;
+        
+        // Display exam title if linked
+        const examTitle = s.examTitleSnapshot ? ` • ${s.examTitleSnapshot}` : '';
+        
+        const start = s.startAt?.toDate ? s.startAt.toDate() : new Date(s.startAt);
+        const end = s.endAt?.toDate ? s.endAt.toDate() : new Date(s.endAt);
+        const fmt = new Intl.DateTimeFormat('default', { month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' });
+        els.detailMeta.textContent = `${fmt.format(start)} - ${fmt.format(end)}${examTitle}`;
+
+        // STATUS BADGE - Prominent Display
+        const statusBadge = document.getElementById('statusBadge');
+        const statusText = document.getElementById('statusText');
+        
+        let badgeClass = 'status-badge-scheduled';
+        let statusDisplay = s.status;
+        
+        if (s.status === 'live' && s.paused) {
+            badgeClass = 'status-badge-paused';
+            statusDisplay = 'Paused';
+        } else if (s.status === 'live') {
+            badgeClass = 'status-badge-live';
+            statusDisplay = 'Live';
+        } else if (s.status === 'ended') {
+            badgeClass = 'status-badge-ended';
+            statusDisplay = 'Ended';
+        } else if (s.status === 'upcoming') {
+            badgeClass = 'status-badge-scheduled';
+            statusDisplay = 'Scheduled';
+        }
+        
+        statusBadge.className = `status-badge ${badgeClass}`;
+        statusText.textContent = statusDisplay;
+
+        // Populate collapsible technical details
+        document.getElementById('detailScheduleId').textContent = s.id || '-';
+        document.getElementById('detailExamId').textContent = s.examId || 'None';
+        document.getElementById('detailCreatedAt').textContent = s.createdAt?.toDate ? 
+            new Intl.DateTimeFormat('default', { dateStyle: 'medium', timeStyle: 'short' }).format(s.createdAt.toDate()) : '-';
+        document.getElementById('detailDuration').textContent = s.durationMs ? 
+            `${Math.round(s.durationMs / 60000)} minutes` : '-';
+
+        // Setup details toggle
+        const detailsToggle = document.getElementById('detailsToggle');
+        const detailsContent = document.getElementById('detailsContent');
+        detailsToggle.onclick = () => {
+            detailsToggle.classList.toggle('expanded');
+            detailsContent.classList.toggle('visible');
+        };
+
+        // Visibility of controls based on status
+        const isUpcoming = s.status === 'upcoming';
+        const isLive = s.status === 'live' && !s.paused;
+        const isPaused = s.status === 'live' && s.paused;
+        const isEnded = s.status === 'ended';
+
+        // Toggle buttons
+        toggle(els.btnStartNow, isUpcoming);
+        toggle(els.btnPause, isLive);
+        toggle(els.btnResume, isPaused);
+        toggle(els.btnEndNow, isLive || isPaused);
+        
+        // Time controls available when live (paused or not)
+        const canModifyTime = s.status === 'live';
+        toggle(els.btnAdd5, canModifyTime);
+        toggle(els.btnAdd10, canModifyTime);
+        toggle(els.btnSub5, canModifyTime);
+        toggle(els.btnSub10, canModifyTime);
+
+        toggle(els.btnDelete, true);
+
+        // Timer Logic
+        if (state.timerInterval) clearInterval(state.timerInterval);
+        
+        if (isPaused) {
+            els.timeLeft.textContent = "PAUSED";
+            els.timerContainer.style.display = 'block';
+        } else if (isLive) {
+            els.timerContainer.style.display = 'block';
+            const durationMs = s.durationMs || 0;
+            const extraMs = s.extraTimeMs || 0;
+            const liveStarted = s.liveStartedAt?.toDate ? s.liveStartedAt.toDate() : (s.liveStartedAt ? new Date(s.liveStartedAt) : start);
+            const targetTime = liveStarted.getTime() + durationMs + extraMs;
+
+            const updateTimer = () => {
+                const now = Date.now();
+                const diff = targetTime - now;
+
+                if (diff <= 0) {
+                    els.timeLeft.textContent = "00:00:00";
+                } else {
+                    const h = Math.floor(diff / 3600000);
+                    const m = Math.floor((diff % 3600000) / 60000);
+                    const sec = Math.floor((diff % 60000) / 1000);
+                    els.timeLeft.textContent = 
+                        `${h.toString().padStart(2,'0')}:${m.toString().padStart(2,'0')}:${sec.toString().padStart(2,'0')}`;
+                }
+            };
+            updateTimer();
+            state.timerInterval = setInterval(updateTimer, 1000);
+        } else {
+            els.timerContainer.style.display = 'none';
+        }
+    }
+
+    function toggle(el, condition) {
+        el.style.display = condition ? 'inline-flex' : 'none';
+    }
+
+    // --- CONTROLS LOGIC ---
+    function initControls() {
+        // Schedule Actions
+        els.btnStartNow.onclick = () => {
+            if(confirm("Start exam now?")) startScheduleNow(state.selectedId).catch(console.error);
+        };
+        els.btnPause.onclick = () => pauseSchedule(state.selectedId);
+        els.btnResume.onclick = () => resumeSchedule(state.selectedId);
+        els.btnEndNow.onclick = () => {
+            if(confirm("End exam immediately?")) endScheduleNow(state.selectedId).catch(console.error);
+        };
+        els.btnDelete.onclick = () => {
+            if(confirm("Permanently delete this schedule?")) {
+                deleteSchedule(state.selectedId);
+                state.selectedId = null;
+                els.detailContainer.style.display = 'none';
+                els.emptyState.style.display = 'flex';
+            }
+        };
+
+        // Time adjustments
+        const modifyTime = (min) => addScheduleTime(state.selectedId, min * 60000);
+        els.btnAdd5.onclick = () => modifyTime(5);
+        els.btnAdd10.onclick = () => modifyTime(10);
+        els.btnSub5.onclick = () => modifyTime(-5);
+        els.btnSub10.onclick = () => modifyTime(-10);
+    }
+
+    // --- ROSTER LOGIC ---
+    function renderRosterTable(roster) {
+        els.rosterTable.innerHTML = '';
+        if (!roster || roster.length === 0) {
+            els.rosterTable.innerHTML = '<tr><td colspan="7" style="text-align:center; color:gray;">No candidates assigned.</td></tr>';
+            return;
+        }
+
+        roster.forEach(c => {
+            const tr = document.createElement('tr');
+            
+            // Determine statuses - using DB model fields
+            const rStatus = c.status || 'assigned'; // assigned, checked_in, absent
+            const cStatus = c.candidateStatus || 'not_started'; // not_started, in_progress, paused, submitted, locked
+            
+            let rPillClass = rStatus === 'checked_in' ? 'pill-present' : (rStatus === 'absent' ? 'pill-absent' : 'pill-scheduled');
+            let cPillClass = cStatus === 'in_progress' ? 'pill-live' : (cStatus === 'submitted' ? 'pill-ended' : 'pill-paused');
+
+            const extraTimeMins = Math.round((c.extraTimeMs || 0) / 60000);
+
+            // Actions generation
+            let actions = '';
+            
+            // 1. Roster Status Actions
+            if (rStatus !== 'checked_in' && rStatus !== 'absent') {
+                actions += `<button class="btn btn-sec btn-sm" onclick="handleRoster('${c.id}', 'checked_in')">Check In</button> `;
+                actions += `<button class="btn btn-sec btn-sm" onclick="handleRoster('${c.id}', 'absent')">Absent</button> `;
+            } else if (rStatus === 'checked_in') {
+                // 2. Exam Controls (only if present)
+                if (cStatus === 'in_progress') {
+                    actions += `<button class="btn btn-sec btn-sm" onclick="handleCandStatus('${c.id}', 'paused')">Pause</button> `;
+                } else if (cStatus === 'paused') {
+                    actions += `<button class="btn btn-primary btn-sm" onclick="handleCandStatus('${c.id}', 'in_progress')">Resume</button> `;
+                }
+
+                // Time
+                if (cStatus !== 'submitted') {
+                     actions += `<button class="btn btn-sec btn-sm" onclick="handleCandTime('${c.id}', 5)">+5m</button> `;
+                     actions += `<button class="btn btn-danger btn-sm" onclick="handleForceSubmit('${c.id}')">Submit</button> `;
+                } else {
+                     actions += `<button class="btn btn-sec btn-sm" onclick="handleUnlock('${c.id}')">Unlock</button> `;
+                }
+            }
+
+            tr.innerHTML = `
+                <td><strong>${c.fullNameSnapshot || 'Unknown'}</strong></td>
+                <td>${c.testerId || '-'}</td>
+                <td>${c.classSnapshot || '-'}</td>
+                <td><span class="pill ${rPillClass}">${rStatus}</span></td>
+                <td><span class="pill ${cPillClass}">${cStatus}</span></td>
+                <td>${extraTimeMins > 0 ? '+' + extraTimeMins + 'm' : '-'}</td>
+                <td style="text-align: right;">${actions}</td>
+            `;
+            els.rosterTable.appendChild(tr);
+        });
+    }
+
+    // --- GLOBAL ACTIONS FOR ROSTER (Exposed to window for onclick strings) ---
+    window.handleRoster = (cid, status) => {
+        setRosterStatus(state.selectedId, cid, status);
+    };
+
+    window.handleCandStatus = (cid, status) => {
+        setCandidateStatus(state.selectedId, cid, status);
+    };
+
+    window.handleCandTime = (cid, mins) => {
+        addCandidateTime(state.selectedId, cid, mins * 60000);
+        showToast(`Added ${mins}m to candidate`);
+    };
+
+    window.handleForceSubmit = (cid) => {
+        if(confirm("Force submit this candidate's exam?")) {
+            forceSubmitCandidate(state.selectedId, cid);
+        }
+    };
+
+    window.handleUnlock = (cid) => {
+        if(confirm("Unlock this candidate (allow them to continue)?")) {
+            unlockCandidate(state.selectedId, cid);
+        }
+    };
+
+</script>
+
+</body>
+</html>

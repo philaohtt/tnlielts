@@ -1,0 +1,737 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Editor Hub | IELTS System</title>
+    <style>
+        /* --- CSS VARIABLES & RESET --- */
+        :root {
+            /* Palette - IDP/British Council Inspired (Neutral, Professional) */
+            --primary: #e31837; /* IDP Red/Brand Color */
+            --primary-hover: #c4122d;
+            --secondary: #2d3748;
+            
+            --surface: #ffffff;
+            --bg-body: #f3f4f6;
+            --bg-sidebar: #1a202c; /* Dark Sidebar */
+            
+            --text-main: #1f2937;
+            --text-muted: #6b7280;
+            --text-light: #f9fafb;
+            
+            --border: #e5e7eb;
+            --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            
+            --radius: 8px;
+            --font: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+
+            /* Skill Colors */
+            --color-listening-bg: #d1fae5; --color-listening-text: #065f46;
+            --color-reading-bg: #dbeafe;   --color-reading-text: #1e40af;
+            --color-writing-bg: #ffedd5;   --color-writing-text: #9a3412;
+            --color-speaking-bg: #f3e8ff;  --color-speaking-text: #6b21a8;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; outline: none; }
+        
+        body {
+            font-family: var(--font);
+            background-color: var(--bg-body);
+            color: var(--text-main);
+            height: 100vh;
+            display: flex;
+            overflow: hidden; /* Sidebar scroll separation */
+        }
+
+        /* --- LAYOUT: SIDEBAR --- */
+        .sidebar {
+            width: 260px;
+            background: var(--bg-sidebar);
+            color: var(--text-light);
+            display: flex;
+            flex-direction: column;
+            flex-shrink: 0;
+            border-right: 1px solid #374151;
+        }
+
+        .sidebar-header {
+            height: 64px;
+            display: flex;
+            align-items: center;
+            padding: 0 24px;
+            font-weight: 700;
+            font-size: 18px;
+            border-bottom: 1px solid #2d3748;
+            color: white;
+            letter-spacing: 0.5px;
+        }
+
+        .nav-links {
+            padding: 24px 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            border-radius: var(--radius);
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-decoration: none;
+            color: #9ca3af;
+        }
+
+        .nav-item:hover:not(.disabled) { background: #2d3748; color: white; }
+        .nav-item.active { background: var(--primary); color: white; }
+        
+        .nav-item.disabled { 
+            opacity: 0.5; 
+            cursor: not-allowed; 
+            position: relative;
+        }
+        
+        /* --- LAYOUT: MAIN CONTENT --- */
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+        }
+
+        .top-bar {
+            background: var(--surface);
+            padding: 24px 32px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .page-title h1 { font-size: 24px; font-weight: 700; color: var(--text-main); margin-bottom: 4px; }
+        .page-title p { font-size: 14px; color: var(--text-muted); }
+
+        .container {
+            padding: 32px;
+            max-width: 1400px;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        /* --- TEST GRID & CARDS --- */
+        .tests-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+            gap: 24px;
+        }
+
+        .test-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: var(--shadow-sm);
+            transition: all 0.2s ease;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        .test-card:hover {
+            transform: translateY(-3px);
+            box-shadow: var(--shadow-md);
+            border-color: #cbd5e1;
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 16px;
+        }
+
+        .card-title-group { flex: 1; padding-right: 12px; }
+        .card-title { font-size: 16px; font-weight: 600; color: var(--text-main); line-height: 1.4; margin-bottom: 6px; }
+        
+        /* Badges */
+        .status-pill {
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            padding: 3px 8px;
+            border-radius: 100px;
+            letter-spacing: 0.5px;
+        }
+        .status-draft { background: #f3f4f6; color: #4b5563; }
+        .status-ready { background: #e0f2fe; color: #0284c7; }
+        .status-published { background: #dcfce7; color: #166534; }
+
+        .skill-tag {
+            font-size: 11px;
+            font-weight: 600;
+            padding: 4px 10px;
+            border-radius: 6px;
+            display: inline-block;
+        }
+        .skill-listening { background: var(--color-listening-bg); color: var(--color-listening-text); }
+        .skill-reading { background: var(--color-reading-bg); color: var(--color-reading-text); }
+        .skill-writing { background: var(--color-writing-bg); color: var(--color-writing-text); }
+        .skill-speaking { background: var(--color-speaking-bg); color: var(--color-speaking-text); }
+
+        /* Card Meta Data */
+        .card-stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 20px;
+            padding: 12px 0;
+            border-top: 1px solid #f3f4f6;
+            border-bottom: 1px solid #f3f4f6;
+        }
+
+        .stat-item { font-size: 13px; color: var(--text-muted); display: flex; align-items: center; gap: 6px; }
+        .stat-item strong { color: var(--text-main); font-weight: 600; }
+
+        .audio-mode-badge {
+            grid-column: 1 / -1;
+            font-size: 12px;
+            color: var(--text-muted);
+            background: #f8fafc;
+            padding: 4px 8px;
+            border-radius: 4px;
+            width: fit-content;
+        }
+
+        /* Actions */
+        .card-actions {
+            margin-top: auto;
+            display: flex;
+            gap: 8px;
+        }
+
+        /* --- BUTTONS --- */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            border: 1px solid transparent;
+            transition: 0.2s;
+            text-decoration: none;
+            gap: 6px;
+        }
+
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-primary:hover { background: var(--primary-hover); }
+
+        .btn-secondary { background: white; border-color: var(--border); color: var(--text-main); }
+        .btn-secondary:hover { background: #f9fafb; border-color: #d1d5db; }
+
+        .btn-icon { padding: 8px; color: var(--text-muted); background: transparent; }
+        .btn-icon:hover { color: var(--primary); background: #fef2f2; }
+
+        .btn-delete { color: #dc2626; }
+        .btn-delete:hover { background: #fef2f2; }
+
+        /* --- MODAL --- */
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.5);
+            display: none;
+            align-items: center; justify-content: center;
+            z-index: 1000;
+            backdrop-filter: blur(2px);
+        }
+
+        .modal {
+            background: white;
+            width: 100%; max-width: 480px;
+            border-radius: 12px;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+            animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
+        .modal-header { padding: 20px 24px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+        .modal-title { font-weight: 700; font-size: 18px; }
+        .modal-body { padding: 24px; display: flex; flex-direction: column; gap: 16px; }
+        .modal-footer { padding: 20px 24px; background: #f9fafb; border-top: 1px solid var(--border); border-radius: 0 0 12px 12px; display: flex; justify-content: flex-end; gap: 12px; }
+
+        .form-group label { display: block; font-size: 13px; font-weight: 600; color: var(--text-muted); margin-bottom: 6px; }
+        .form-input { width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 6px; font-family: var(--font); font-size: 14px; }
+        .form-input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(227, 24, 55, 0.1); }
+        
+        .row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+
+        /* Utilities */
+        .hidden { display: none; }
+        .empty-state { grid-column: 1/-1; text-align: center; padding: 60px; color: var(--text-muted); background: white; border: 1px dashed var(--border); border-radius: 12px; }
+
+        /* Toast */
+        #toastContainer { position: fixed; bottom: 24px; right: 24px; z-index: 2000; display: flex; flex-direction: column; gap: 10px; }
+        .toast { background: #1f2937; color: white; padding: 12px 20px; border-radius: 8px; font-size: 14px; box-shadow: var(--shadow-md); animation: fadeIn 0.3s; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+    </style>
+</head>
+<body>
+
+    <!-- Sidebar -->
+    <nav class="sidebar">
+        <div class="sidebar-header">
+            <span>IELTS Admin</span>
+        </div>
+        <div class="nav-links">
+            <a href="#" class="nav-item active">
+                <span>Test Editor</span>
+            </a>
+            <a href="Exam_Shell.html" class="nav-item">
+                <span>Exam Builder</span>
+            </a>
+            <div class="nav-item disabled" title="Coming Soon">
+                <span>Proctor View</span>
+            </div>
+            <div class="nav-item disabled" title="Coming Soon">
+                <span>Candidate Mgmt</span>
+            </div>
+            <div class="nav-item disabled" title="Coming Soon">
+                <span>Examiner Portal</span>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <header class="top-bar">
+            <div class="page-title">
+                <h1>Test Editor</h1>
+                <p>Manage, create, and configure your mock tests.</p>
+            </div>
+
+            <!-- added: search + skill filter + create button + exam builder link -->
+            <div style="display:flex; gap:12px; align-items:center;">
+                <button class="btn btn-secondary" onclick="window.location.href='Exam_Shell.html'" title="Create comprehensive exam packages">
+                    <span>📋 Go to Exam Builder</span>
+                </button>
+                <input id="testSearch" type="search" placeholder="Search tests..." class="form-input" style="width:220px;">
+                <select id="skillFilter" class="form-input" style="width:150px;">
+                    <option value="">All Skills</option>
+                    <option value="Listening">Listening</option>
+                    <option value="Reading">Reading</option>
+                    <option value="Writing">Writing</option>
+                    <option value="Speaking">Speaking</option>
+                </select>
+                <button class="btn btn-primary" onclick="openCreateModal()">
+                    <span>+ Create New Test</span>
+                </button>
+            </div>
+        </header>
+
+        <div class="container">
+            <div id="testsGrid" class="tests-grid">
+                <!-- Javascript will inject cards here -->
+                <div class="empty-state">Loading tests...</div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Create Test Modal -->
+    <div id="createModal" class="modal-overlay">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 class="modal-title">Create New Test</h3>
+                <button class="btn-icon" onclick="closeModal()" style="border:none; cursor:pointer">&times;</button>
+            </div>
+            <div class="modal-body">
+                
+                <div class="form-group">
+                    <label>Skill Module</label>
+                    <select id="newSkill" class="form-input" onchange="updateModalDefaults()">
+                        <option value="Listening">Listening</option>
+                        <option value="Reading">Reading</option>
+                        <option value="Writing">Writing</option>
+                        <option value="Speaking">Speaking</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Test Title</label>
+                    <input type="text" id="newName" class="form-input" placeholder="e.g. Cambridge 18 - Test 1">
+                </div>
+
+                <div class="row-2">
+                    <div class="form-group">
+                        <label>Total Sections</label>
+                        <input type="number" id="newSections" class="form-input" value="4">
+                    </div>
+                    <div class="form-group">
+                        <label>Total Time (mins)</label>
+                        <input type="number" id="newTime" class="form-input" value="30">
+                    </div>
+                </div>
+
+                <!-- Listening Specific -->
+                <div class="form-group" id="audioModeGroup">
+                    <label>Audio Mode</label>
+                    <select id="newAudioMode" class="form-input">
+                        <option value="section">Split by Section (Standard)</option>
+                        <option value="whole">Single Full Audio File</option>
+                    </select>
+                </div>
+
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+                <button class="btn btn-primary" onclick="handleCreate()">Create Test</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="toastContainer"></div>
+
+    <script type="module">
+        // --- FIRESTORE PLACEHOLDER LOGIC ---
+        // In production, this imports from your actual Firebase config
+        import { DB } from "../../db/db.tests.js"; 
+
+        /* 
+           Expected DB.listTests() return structure:
+           [
+             { 
+               id: '123', 
+               name: 'Test 1', 
+               skill: 'Listening', 
+               status: 'draft', // or 'ready', 'published'
+               totalSections: 4, 
+               totalTimeMin: 30,
+               audioMode: 'section' // optional
+             }, ...
+           ]
+        */
+
+        // State
+        let allTests = [];
+
+        window.onload = async () => {
+            await loadTests();
+        };
+
+        async function loadTests() {
+            const grid = document.getElementById('testsGrid');
+            try {
+                // Fetch from Firestore via wrapper
+                allTests = await DB.listTests();
+
+                if (!allTests || allTests.length === 0) {
+                    grid.innerHTML = `
+                        <div class="empty-state">
+                            <h3>No tests found</h3>
+                            <p style="margin-top:8px">Create your first test to get started.</p>
+                        </div>`;
+                    return;
+                }
+
+                // Sort by updatedAt (most recent first), fallback to createdAt
+                allTests.sort((a, b) => {
+                    const ta = new Date(b.updatedAt || b.createdAt || 0).getTime();
+                    const tb = new Date(a.updatedAt || a.createdAt || 0).getTime();
+                    return ta - tb;
+                });
+
+                // render filtered view (search + skill)
+                renderFilteredTests();
+
+            } catch (e) {
+                console.error("Load error:", e);
+                // Detect permission-like errors and show friendly message with Retry
+                const isPermission = e && (e.code === 'permission-denied' || /permission/i.test(e.message || ''));
+                const msg = isPermission
+                    ? `<h3>Access denied</h3><p style="margin-top:8px">You don't have permission to view tests. Contact your administrator.</p>`
+                    : `<h3>Error loading data</h3><p style="margin-top:8px">An unexpected error occurred. Please try again.</p>`;
+
+                grid.innerHTML = `
+                    <div class="empty-state" style="color:var(--primary)">
+                        ${msg}
+                        <div style="margin-top:16px;">
+                            <button class="btn btn-primary" onclick="loadTests()">Retry</button>
+                        </div>
+                    </div>`;
+            }
+        }
+
+        // render tests applying search + skill filter
+        function renderFilteredTests() {
+            const grid = document.getElementById('testsGrid');
+            const q = (document.getElementById('testSearch')?.value || '').toLowerCase().trim();
+            const skillFilter = (document.getElementById('skillFilter')?.value || '').trim();
+            const filtered = (allTests || []).filter(t => {
+                if (skillFilter && (t.skill || '').toLowerCase() !== skillFilter.toLowerCase()) return false;
+                if (!q) return true;
+                const name = (t.name || t.title || '').toLowerCase();
+                const skill = (t.skill || '').toLowerCase();
+                return name.includes(q) || skill.includes(q);
+            });
+            if (!filtered.length) {
+                grid.innerHTML = `<div class="empty-state"><h3>No tests found</h3><p style="margin-top:8px">Adjust your search or create a new test.</p></div>`;
+                return;
+            }
+            grid.innerHTML = filtered.map(renderCard).join('');
+        }
+        
+        // wire search/filter inputs
+        document.addEventListener('input', (e) => {
+            if (e.target && (e.target.id === 'testSearch' || e.target.id === 'skillFilter')) renderFilteredTests();
+        });
+
+        function renderCard(test) {
+            // prefer test.name (editors/preview expect .name), fallback to test.title
+            const title = test.name || test.title || 'Untitled Test';
+            const skill = test.skill || 'Listening';
+            const status = test.status || 'draft';
+            const sections = test.totalSections || 0; // use document field only
+            const time = test.totalTimeMin || 30;
+            
+            // Skill Badge Logic
+            const skillClass = `skill-${skill.toLowerCase()}`;
+            
+            // Status Logic
+            const statusClass = `status-${status.toLowerCase()}`;
+            const statusLabel = status;
+
+            // Audio Mode (Listening only)
+            let audioHtml = '';
+            if (skill === 'Listening') {
+                const mode = (test.audioMode === 'whole') ? 'Single File' : 'Split Sections';
+                audioHtml = `<div class="audio-mode-badge">🎵 Audio: ${mode}</div>`;
+            }
+
+            return `
+            <div class="test-card">
+                <div class="card-header">
+                    <span class="skill-tag ${skillClass}">${skill}</span>
+                    <span class="status-pill ${statusClass}">${statusLabel}</span>
+                </div>
+                
+                <div class="card-title-group">
+                    <h3 class="card-title">${title}</h3>
+                </div>
+
+                <div class="card-stats">
+                    <div class="stat-item">
+                        <span>📄 <strong>${sections}</strong> Sections</span>
+                    </div>
+                    <div class="stat-item">
+                        <span>⏱️ <strong>${time}</strong> Min</span>
+                    </div>
+                    ${audioHtml}
+                </div>
+
+                <div class="card-actions">
+                    <button class="btn btn-primary" style="flex:1" onclick="routeToEditor('${test.id}', '${skill}')">
+                        Open Editor
+                    </button>
+                    <button class="btn btn-secondary btn-icon" title="Preview (opens in new tab)" onclick="openPreview('${test.id}', '${skill}')">
+                        👁️
+                    </button>
+                    <button class="btn btn-secondary btn-icon" title="Duplicate" onclick="showToast('Duplicate coming soon')">
+                        📋
+                    </button>
+                    <button class="btn btn-secondary btn-icon btn-delete" title="Delete" onclick="deleteTest('${test.id}')">
+                        🗑️
+                    </button>
+                </div>
+            </div>
+            `;
+        }
+
+        // --- NAVIGATION ---
+        window.routeToEditor = function(id, skill) {
+            // Map skill to specific HTML file
+            const pageMap = {
+                'Listening': 'Test_Editor_Listening.html',
+                'Reading': 'Test_Editor_Reading.html',
+                'Writing': 'Test_Editor_Writing.html',
+                'Speaking': 'Test_Editor_Speaking.html'
+            };
+
+            const page = pageMap[skill] || 'Test_Editor_Listening.html';
+            const url = `${page}?testId=${id}`;
+
+            // persist last editor context
+            try {
+                sessionStorage.setItem('last_test_id', id);
+                sessionStorage.setItem('last_editor_url', url);
+            } catch (e) { /* ignore storage errors */ }
+
+            window.location.href = url;
+        };
+
+        // Preview handler: store editor URL and open preview in new tab
+        window.openPreview = function(id, skill) {
+            // Map skill to specific HTML file (same as routeToEditor)
+            const pageMap = {
+                'Listening': 'Test_Editor_Listening.html',
+                'Reading': 'Test_Editor_Reading.html',
+                'Writing': 'Test_Editor_Writing.html',
+                'Speaking': 'Test_Editor_Speaking.html'
+            };
+
+            const page = pageMap[skill] || 'Test_Editor_Listening.html';
+            const editorUrl = `${page}?testId=${id}`;
+
+            // Store the editor URL so preview can return to it
+            try {
+                sessionStorage.setItem('last_editor_url', editorUrl);
+                sessionStorage.setItem('last_test_id', id);
+            } catch (e) {
+                console.warn('Failed to store editor URL:', e);
+            }
+
+            // Open preview in new tab
+            const previewUrl = `preview.html?testId=${id}`;
+            window.open(previewUrl, '_blank');
+        };
+
+        // --- ACTIONS ---
+        window.deleteTest = async function(id) {
+			if(!confirm("Are you sure? This will permanently delete the test and all questions.")) return;
+			
+			try {
+				// Try several possible DB delete function names for compatibility
+				if (DB && typeof DB.deleteTest === 'function') {
+					await DB.deleteTest(id);
+				} else if (DB && typeof DB.delete === 'function') {
+					await DB.delete(id);
+				} else if (DB && typeof DB.removeTest === 'function') {
+					await DB.removeTest(id);
+				} else if (DB && typeof DB.deleteTestById === 'function') {
+					await DB.deleteTestById(id);
+				} else {
+					console.warn('No delete method found on DB');
+					showToast('Delete not supported in this environment');
+					return;
+				}
+				showToast("Test deleted successfully");
+				await loadTests(); // Refresh grid
+			} catch (e) {
+				console.error(e);
+				showToast("Error deleting test");
+			}
+		};
+
+        // --- MODAL LOGIC ---
+        window.openCreateModal = function() {
+            document.getElementById('createModal').style.display = 'flex';
+            document.getElementById('newName').value = '';
+            // Reset to default
+            document.getElementById('newSkill').value = 'Listening';
+            updateModalDefaults();
+        };
+
+        window.closeModal = function() {
+            document.getElementById('createModal').style.display = 'none';
+        };
+
+        // UX: Auto-fill defaults based on skill selection
+        window.updateModalDefaults = function() {
+            const skill = document.getElementById('newSkill').value;
+            const sectionsInput = document.getElementById('newSections');
+            const timeInput = document.getElementById('newTime');
+            const audioGroup = document.getElementById('audioModeGroup');
+            const audioMode = document.getElementById('newAudioMode');
+
+            if (skill === 'Listening') {
+                sectionsInput.value = 4;
+                timeInput.value = 30;
+                audioGroup.classList.remove('hidden');
+                audioMode.value = 'section';
+            } else if (skill === 'Reading') {
+                sectionsInput.value = 3;
+                timeInput.value = 60;
+                audioGroup.classList.add('hidden');
+                audioMode.value = 'section';
+            } else if (skill === 'Writing') {
+                sectionsInput.value = 2;
+                timeInput.value = 60;
+                audioGroup.classList.add('hidden');
+                audioMode.value = 'section';
+            } else if (skill === 'Speaking') {
+                sectionsInput.value = 3;
+                timeInput.value = 15;
+                audioGroup.classList.add('hidden');
+                audioMode.value = 'section';
+            }
+        };
+
+        window.handleCreate = async function() {
+            const title = document.getElementById('newName').value.trim();
+            const skill = document.getElementById('newSkill').value;
+            const sections = parseInt(document.getElementById('newSections').value);
+            const time = parseInt(document.getElementById('newTime').value);
+            const audioModeInput = document.getElementById('newAudioMode').value;
+
+            if (!title) { showToast("Please enter a test title"); return; }
+
+            // normalize audioMode to "section" or "whole"
+            const audioMode = (skill === 'Listening') ? (audioModeInput === 'whole' ? 'whole' : 'section') : undefined;
+
+            const payload = {
+                name: title,            // store as .name so editors/preview see it immediately
+                skill: skill,
+                testType: skill,        // keep testType aligned with skill
+                status: 'draft',
+                totalSections: Number.isFinite(sections) ? sections : (skill === 'Listening' ? 4 : (skill === 'Reading' ? 3 : (skill === 'Writing' ? 2 : 3))),
+                totalTimeMin: Number.isFinite(time) ? time : (skill === 'Listening' ? 30 : (skill === 'Reading' || skill === 'Writing' ? 60 : 15)),
+                createdAt: new Date().toISOString()
+            };
+            if (audioMode) payload.audioMode = audioMode;
+
+            try {
+                const newId = await DB.createTest(payload);
+                closeModal();
+                showToast("Test created successfully!");
+
+                const page = (skill === 'Listening') ? 'Test_Editor_Listening.html'
+                           : (skill === 'Reading') ? 'Test_Editor_Reading.html'
+                           : (skill === 'Writing') ? 'Test_Editor_Writing.html'
+                           : 'Test_Editor_Speaking.html';
+                const url = `${page}?testId=${newId}`;
+                try { sessionStorage.setItem('last_test_id', newId); sessionStorage.setItem('last_editor_url', url); } catch (e) {}
+
+                setTimeout(() => { window.location.href = url; }, 400);
+            } catch (e) {
+                console.error(e);
+                showToast("Failed to create test");
+            }
+        };
+
+        // --- UTILS ---
+        window.showToast = function(msg) {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            toast.className = 'toast';
+            toast.innerText = msg;
+            container.appendChild(toast);
+            setTimeout(() => toast.remove(), 3000);
+        };
+
+        // Close modal on outside click
+        document.getElementById('createModal').addEventListener('click', (e) => {
+            if (e.target.id === 'createModal') closeModal();
+        });
+
+    </script>
+</body>
+</html>

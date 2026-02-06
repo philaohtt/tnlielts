@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MCQ Editor</title>
+    <style>
+        /* --- CSS from mcq_set.block.css --- */
+        .mcq-task { font-family: Arial, sans-serif; color: #333; margin-top: 20px; }
+        .mcq-questions-list { display: flex; flex-direction: column; }
+        .cbt-instruction-box { background-color: #f3f9ff; border: 1px solid #c2e0ff; padding: 15px; margin-bottom: 20px; border-radius: 4px; line-height: 1.5; }
+        .mcq-numbering-text { font-weight: bold; display: block; margin-bottom: 4px; font-size: 15px; }
+        .mcq-instruction-content { font-size: 15px; font-style: italic; color: #444; }
+        .mcq-question { padding: 20px 0; border-bottom: 1px solid #e0e0e0; }
+        .mcq-question:last-child { border-bottom: none; }
+        .mcq-prompt { display: flex; align-items: center; gap: 12px; font-size: 16px; font-weight: 500; margin-bottom: 15px; }
+        .mcq-q-num-box { border: 1px solid #333; font-weight: bold; min-width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        .mcq-options { display: flex; flex-direction: column; gap: 4px; }
+        .mcq-option { display: grid; grid-template-columns: 24px 24px 1fr auto; align-items: center; gap: 8px; padding: 8px 12px; cursor: pointer; border-radius: 4px; transition: background 0.2s; border-left: 4px solid transparent; }
+        .mcq-option:hover { background: #f8f9fa; }
+        .mcq-option input { margin: 0; cursor: pointer; width: 16px; height: 16px; }
+        .mcq-letter { font-weight: bold; text-align: center; width: 20px; }
+        .mcq-text { line-height: 1.4; font-size: 15px; }
+        .mcq-option.is-preview-correct { background-color: #e8f5e9 !important; border-left-color: #2e7d32; }
+        .mcq-correct-label { font-size: 11px; font-weight: bold; color: #2e7d32; text-transform: uppercase; white-space: nowrap; }
+
+        /* Editor Panel Styles */
+        .mcq-editor { font-family: Arial, sans-serif; font-size: 13px; }
+        .mcq-editor-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #ddd; padding-bottom: 8px; margin-bottom: 12px; }
+        .mcq-q-item-ed { border: 1px solid #eee; background: #fafafa; padding: 10px; margin-bottom: 12px; border-radius: 4px; }
+        .mcq-ed-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+        .mcq-ed-label { font-size: 11px; font-weight: bold; color: #666; text-transform: uppercase; margin-bottom: 4px; display: block; }
+        .mcq-ed-input, .mcq-ed-textarea { width: 100%; border: 1px solid #ccc; padding: 6px; font-size: 13px; box-sizing: border-box; border-radius: 2px; }
+        .mcq-opt-row-ed { display: grid; grid-template-columns: 24px 24px 1fr 30px; align-items: center; gap: 6px; margin-bottom: 4px; padding: 2px 4px; }
+        .mcq-opt-row-ed.is-correct-row { background: #c8e6c9; border-radius: 2px; }
+        .mcq-btn-sm { padding: 4px 8px; font-size: 11px; cursor: pointer; border: 1px solid #ccc; background: #fff; }
+        .mcq-btn-add { background: #0072bc; color: #fff; border: none; padding: 8px 15px; cursor: pointer; font-weight: bold; width: 100%; border-radius: 2px; }
+
+        /* --- Page Styles --- */
+        body { font-family: 'Segoe UI', sans-serif; background: #f4f6f8; margin: 0; padding: 20px; }
+        .editor-container { max-width: 800px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #f0f0f0; padding-bottom: 15px; margin-bottom: 20px; }
+        .btn-cancel { text-decoration: none; color: #666; border: 1px solid #ddd; padding: 6px 12px; border-radius: 4px; font-size: 14px; }
+        .btn-cancel:hover { background: #f9f9f9; }
+    </style>
+</head>
+<body>
+
+<div class="editor-container">
+    <div class="header">
+        <h2 style="margin:0">Edit MCQ Block</h2>
+        <a href="#" id="btnBack" class="btn-cancel">Cancel / Back</a>
+    </div>
+    <div id="editor-mount"></div>
+</div>
+
+<script>
+    // --- Logic from mcq_set.block.js ---
+    const mcqSetBlock = {
+      renderTaker(data) { return this.renderBase(data, true); },
+      renderEditor(data) { return this.renderBase(data, false); },
+
+      renderBase(data, isTaker) {
+        const div = document.createElement('div');
+        div.className = 'mcq-task';
+        const numbering = data?.numbering || 'Questions 1-3';
+        const instruction = data?.instruction || 'Choose the correct letter, A, B or C';
+        const questions = Array.isArray(data?.questions) ? data.questions : [];
+
+        div.innerHTML = `
+          <div class="cbt-instruction-box">
+            <span class="mcq-numbering-text">${this.escapeHtml(numbering)}</span>
+            <span class="mcq-instruction-content">${this.escapeHtml(instruction)}</span>
+          </div>
+          <div class="mcq-questions-list">
+            ${questions.map((q, i) => {
+              const opts = Array.isArray(q?.options) ? q.options : [];
+              const isMultiple = !!q.allowMultiple;
+              const inputType = isMultiple ? 'checkbox' : 'radio';
+              
+              return `
+                <div class="mcq-question">
+                  <div class="mcq-prompt">
+                    <span class="mcq-q-num-box">${i + 1}</span>
+                    <span>${this.escapeHtml(q?.prompt || '')}</span>
+                  </div>
+                  <div class="mcq-options">
+                    ${opts.map((opt, idx) => {
+                      const correctIndices = Array.isArray(q.correctIndices) ? q.correctIndices : [q.correctIndex || 0];
+                      const isCorrect = correctIndices.includes(idx);
+                      
+                      return `
+                        <label class="mcq-option ${(!isTaker && isCorrect) ? 'is-preview-correct' : ''}">
+                          <input type="${inputType}" name="q-${q?.id || i}" ${!isTaker ? 'disabled' : ''}>
+                          <span class="mcq-letter">${String.fromCharCode(65 + idx)}</span>
+                          <span class="mcq-text">${this.escapeHtml(opt || '')}</span>
+                          ${(!isTaker && isCorrect) ? '<span class="mcq-correct-label">✓ Correct</span>' : ''}
+                        </label>
+                      `;
+                    }).join('')}
+                  </div>
+                </div>
+              `;
+            }).join('')}
+          </div>
+        `;
+        return div;
+      },
+
+      renderEditorPanel(data, ctx) {
+        const safe = this.normalize(data);
+        const root = document.createElement('div');
+        root.className = 'mcq-editor';
+
+        const computeQuestionCount = () => {
+          if (safe.questionCountMode === 'byCorrectAnswers') {
+            return safe.questions.reduce((sum, q) => {
+              const count = Array.isArray(q.correctIndices) && q.correctIndices.length > 0 
+                ? q.correctIndices.length 
+                : 1;
+              return sum + count;
+            }, 0);
+          }
+          return safe.questions.length;
+        };
+
+        const render = () => {
+            root.innerHTML = `
+              <div class="mcq-editor-header">
+                <strong>MCQ Set Editor</strong>
+                <button class="mcq-btn-sm" id="mcq-save" style="background:#0072bc; color:white; border:none; padding:6px 12px; cursor:pointer;">Save Block</button>
+              </div>
+              
+              <div style="display: flex; gap: 8px; margin-bottom: 12px;">
+                <div style="flex: 1;">
+                  <label class="mcq-ed-label">Numbering</label>
+                  <input type="text" class="mcq-ed-input" id="mcq-num" value="${this.escapeHtml(safe.numbering)}">
+                </div>
+                <div style="flex: 2;">
+                  <label class="mcq-ed-label">Instruction</label>
+                  <input type="text" class="mcq-ed-input" id="mcq-instr" value="${this.escapeHtml(safe.instruction)}">
+                </div>
+              </div>
+
+              <div style="border: 1px solid #ddd; padding: 12px; border-radius: 4px; margin-bottom: 12px; background: #fafafa;">
+                <label class="mcq-ed-label" style="margin-bottom: 8px;">Question Counting Mode</label>
+                <div style="display: flex; flex-direction: column; gap: 8px;">
+                  <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13px;">
+                    <input type="radio" name="questionCountMode" value="byItem" ${safe.questionCountMode === 'byItem' ? 'checked' : ''}>
+                    <span>Count by item (1 MCQ item = 1 question)</span>
+                  </label>
+                  <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13px;">
+                    <input type="radio" name="questionCountMode" value="byCorrectAnswers" ${safe.questionCountMode === 'byCorrectAnswers' ? 'checked' : ''}>
+                    <span>Count by correct answers (IELTS: Choose TWO/THREE = 2/3 questions)</span>
+                  </label>
+                </div>
+                <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #ddd; font-size: 12px; color: #666;">
+                  <strong>This block counts as:</strong> <span id="questionCountDisplay">${computeQuestionCount()}</span> question${computeQuestionCount() !== 1 ? 's' : ''}
+                </div>
+              </div>
+
+              <div id="mcq-q-list">
+                 ${safe.questions.map((q, qi) => `
+                    <div class="mcq-q-item-ed" data-qi="${qi}">
+                       <div class="mcq-ed-top">
+                          <span style="font-weight:bold">Q${qi + 1}</span>
+                          <div>
+                            <label style="font-size:11px; margin-right:10px; cursor:pointer">
+                               <input type="checkbox" class="toggle-multiple" ${q.allowMultiple ? 'checked' : ''}> Multiple
+                            </label>
+                            <button class="mcq-btn-sm" data-act="del-q" style="color:red; border-color:red">Del</button>
+                          </div>
+                       </div>
+                       <textarea class="mcq-ed-textarea" data-field="prompt" placeholder="Prompt" style="height:40px">${this.escapeHtml(q.prompt)}</textarea>
+                       
+                       <div style="margin-top:8px">
+                          ${(q.options || []).map((opt, oi) => {
+                             const isCorrect = (q.correctIndices || []).includes(oi);
+                             return `
+                                <div class="mcq-opt-row-ed ${isCorrect ? 'is-correct-row' : ''}" data-oi="${oi}">
+                                   <input type="checkbox" class="set-correct" ${isCorrect ? 'checked' : ''}>
+                                   <span style="font-weight:bold; text-align:center">${String.fromCharCode(65 + oi)}</span>
+                                   <input class="mcq-ed-input" data-field="opt" value="${this.escapeHtml(opt)}">
+                                   <button class="mcq-btn-sm" data-act="del-opt" style="border:none; background:none">×</button>
+                                </div>
+                             `;
+                          }).join('')}
+                          <button class="mcq-btn-sm" data-act="add-opt" style="margin-top:4px">+ Option</button>
+                       </div>
+                    </div>
+                 `).join('')}
+              </div>
+              <button class="mcq-btn-add" id="mcq-add-q">+ Add Question</button>
+            `;
+            attachEvents();
+        };
+
+        const attachEvents = () => {
+            root.querySelector('#mcq-num').oninput = (e) => safe.numbering = e.target.value;
+            root.querySelector('#mcq-instr').oninput = (e) => safe.instruction = e.target.value;
+
+            root.querySelectorAll('input[name="questionCountMode"]').forEach(radio => {
+              radio.onchange = (e) => {
+                safe.questionCountMode = e.target.value;
+                document.getElementById('questionCountDisplay').innerText = computeQuestionCount();
+              };
+            });
+            
+            root.onclick = (e) => {
+                const act = e.target.dataset.act;
+                const qi = e.target.closest('.mcq-q-item-ed')?.dataset.qi;
+                
+                if (e.target.id === 'mcq-save') { ctx.updateBlock(ctx.blockId, safe); return; }
+                if (e.target.id === 'mcq-add-q') { 
+                    safe.questions.push({ id: Math.random().toString(36).slice(2), prompt: '', options: ['', '', ''], correctIndices: [0], allowMultiple: false });
+                    render();
+                    return;
+                }
+
+                if (act === 'del-q') { safe.questions.splice(qi, 1); render(); }
+                if (act === 'add-opt') { safe.questions[qi].options.push(''); render(); }
+                if (act === 'del-opt') {
+                    const oi = e.target.closest('.mcq-opt-row-ed').dataset.oi;
+                    safe.questions[qi].options.splice(oi, 1);
+                    safe.questions[qi].correctIndices = safe.questions[qi].correctIndices
+                        .filter(i => i != oi)
+                        .map(i => i > oi ? i - 1 : i);
+                    render();
+                }
+            };
+
+            root.querySelectorAll('.mcq-ed-textarea[data-field="prompt"]').forEach(t => {
+                t.oninput = (e) => safe.questions[e.target.closest('.mcq-q-item-ed').dataset.qi].prompt = e.target.value;
+            });
+
+            root.querySelectorAll('.mcq-ed-input[data-field="opt"]').forEach(t => {
+                t.oninput = (e) => {
+                    const qi = e.target.closest('.mcq-q-item-ed').dataset.qi;
+                    const oi = e.target.closest('.mcq-opt-row-ed').dataset.oi;
+                    safe.questions[qi].options[oi] = e.target.value;
+                };
+            });
+
+            root.querySelectorAll('.toggle-multiple').forEach(c => {
+                c.onchange = (e) => {
+                    const qi = e.target.closest('.mcq-q-item-ed').dataset.qi;
+                    safe.questions[qi].allowMultiple = e.target.checked;
+                    render();
+                };
+            });
+
+            root.querySelectorAll('.set-correct').forEach(c => {
+                c.onchange = (e) => {
+                    const qi = e.target.closest('.mcq-q-item-ed').dataset.qi;
+                    const oi = parseInt(e.target.closest('.mcq-opt-row-ed').dataset.oi);
+                    const q = safe.questions[qi];
+                    if (!q.allowMultiple) q.correctIndices = [oi];
+                    else {
+                        if (e.target.checked) q.correctIndices.push(oi);
+                        else q.correctIndices = q.correctIndices.filter(i => i !== oi);
+                    }
+                    render();
+                };
+            });
+        };
+
+        render();
+        return root;
+      },
+
+      normalize(data) {
+        return {
+          numbering: data?.numbering || 'Questions 1-3',
+          instruction: data?.instruction || 'Choose the correct letter, A, B or C',
+          questionCountMode: data?.questionCountMode || 'byItem',
+          questions: Array.isArray(data?.questions) ? data.questions.map(q => ({
+            id: q?.id || Math.random().toString(36).slice(2, 9),
+            prompt: q?.prompt || '',
+            options: Array.isArray(q?.options) ? [...q.options] : ['', '', ''],
+            allowMultiple: !!q.allowMultiple,
+            correctIndices: Array.isArray(q.correctIndices) ? q.correctIndices : [q.correctIndex || 0]
+          })) : []
+        };
+      },
+
+      escapeHtml(str) {
+        return (str ?? '').toString()
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+      }
+    };
+
+    // --- Initialization & Session Handling ---
+    const SESS_DATA = 'sys_editing_data';
+    const SESS_STATUS = 'sys_editing_status';
+
+    /**
+     * Navigation Fix: Resolve return URL based on session, params, or referrer
+     */
+    function resolveReturnUrl() {
+        // 1. Check Session Storage
+        const sessionUrl = sessionStorage.getItem('sys_return_url');
+        if (sessionUrl) return sessionUrl;
+
+        // 2. Check URL Parameter
+        const urlParams = new URLSearchParams(window.location.search);
+        const paramUrl = urlParams.get('returnUrl');
+        if (paramUrl) {
+            const decoded = decodeURIComponent(paramUrl);
+            sessionStorage.setItem('sys_return_url', decoded);
+            return decoded;
+        }
+
+        // 3. Check Referrer (if it looks like the editor shell)
+        const ref = document.referrer;
+        if (ref && ref.includes('Test_Editor_') && ref.includes('testId=')) {
+            sessionStorage.setItem('sys_return_url', ref);
+            return ref;
+        }
+
+        // 4. Fallback
+        return 'Test_Editor_Shell.html';
+    }
+
+    const raw = sessionStorage.getItem(SESS_DATA);
+    const data = raw ? JSON.parse(raw) : { numbering: 'Questions 1-3', instruction: 'Choose...', questions: [] };
+
+    const ctx = {
+        blockId: 'temp',
+        updateBlock: (id, newData) => {
+            sessionStorage.setItem(SESS_DATA, JSON.stringify(newData));
+            sessionStorage.setItem(SESS_STATUS, 'saved');
+            window.location.href = resolveReturnUrl();
+        }
+    };
+    
+    // Initialize Navigation
+    document.getElementById('btnBack').href = resolveReturnUrl();
+
+    // Render Editor
+    document.getElementById('editor-mount').appendChild(mcqSetBlock.renderEditorPanel(data, ctx));
+</script>
+</body>
+</html>

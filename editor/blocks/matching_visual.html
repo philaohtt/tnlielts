@@ -1,0 +1,853 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Matching Canvas Editor</title>
+    <style>
+        /* --- Page Layout Styles (Consistent with other editors) --- */
+        body { font-family: 'Segoe UI', sans-serif; background: #f4f6f8; margin: 0; padding: 20px; }
+        .editor-container { max-width: 800px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #f0f0f0; padding-bottom: 15px; margin-bottom: 20px; }
+        .btn-cancel { text-decoration: none; color: #666; border: 1px solid #ddd; padding: 6px 12px; border-radius: 4px; font-size: 14px; }
+        .btn-cancel:hover { background: #f9f9f9; }
+        h2 { margin: 0; color: #333; }
+
+        /* --- CSS from matching_canvas.block.css --- */
+
+        .matching-canvas-task {
+          font-family: Arial, sans-serif;
+          color: #333;
+          margin-top: 20px;
+        }
+
+        /* Instruction Box */
+        .cbt-instruction-box {
+          background-color: #f3f9ff;
+          border: 1px solid #c2e0ff;
+          padding: 15px;
+          margin-bottom: 20px;
+          border-radius: 4px;
+          line-height: 1.5;
+        }
+
+        .mcq-numbering-text {
+          font-weight: bold;
+          display: block;
+          margin-bottom: 4px;
+          font-size: 15px;
+        }
+
+        .mcq-instruction-content {
+          font-size: 15px;
+          font-style: italic;
+          color: #444;
+        }
+
+        /* Layout */
+        .mc-layout {
+          display: flex;
+          gap: 20px;
+          align-items: flex-start;
+        }
+
+        .mc-canvas-side {
+          flex: 3;
+          min-width: 0;
+        }
+
+        .mc-bank-side {
+          flex: 1.2;
+          min-width: 240px;
+        }
+
+        .mc-card {
+          background: #fff;
+          border: 1px solid #e5e7eb;
+          border-radius: 8px;
+          padding: 12px;
+        }
+
+        .mc-img-container {
+          position: relative;
+          border: 1px solid #e5e7eb;
+          border-radius: 4px;
+          overflow: hidden;
+          line-height: 0;
+          background: #fff;
+          display: inline-block;
+        }
+
+        .mc-img-container img {
+          max-width: 100%;
+          display: block;
+          user-select: none;
+        }
+
+        .mc-overlay {
+          position: absolute;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 100%;
+          pointer-events: none;
+        }
+
+        /* Zones */
+        .mc-zone {
+          position: absolute;
+          pointer-events: auto;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          border-radius: 4px;
+          overflow: hidden;
+          box-sizing: border-box;
+        }
+
+        .mc-zone--gap {
+          border: 1px solid #333;
+          background: #fff;
+        }
+
+        /* Preview / Editor Correct State */
+        .mode-editor .mc-zone--gap.has-answer {
+          border: 1px solid #2e7d32;
+          background: #e8f5e9;
+        }
+
+        .mc-placed-pill {
+          width: 100%;
+          height: 100%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-weight: 700;
+          text-align: center;
+          padding: 2px 24px 2px 8px;
+          box-sizing: border-box;
+          position: relative;
+          line-height: 1.1;
+        }
+
+        .mode-editor .mc-placed-pill {
+          color: #2e7d32;
+          padding: 2px 8px;
+        }
+
+        .mc-zone-num {
+          font-weight: 700;
+          color: #111;
+          opacity: 0.6;
+        }
+
+        .mc-clr {
+          position: absolute;
+          right: 4px;
+          background: #333;
+          color: #fff;
+          border: none;
+          border-radius: 50%;
+          width: 16px;
+          height: 16px;
+          cursor: pointer;
+          font-size: 11px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+
+        /* Bank */
+        .mc-bank-title {
+          font-size: 11px;
+          font-weight: 800;
+          text-transform: uppercase;
+          color: #6b7280;
+          margin-bottom: 12px;
+        }
+
+        .mc-pill {
+          background: #fff;
+          border: 1px solid #d1d5db;
+          padding: 8px 12px;
+          border-radius: 6px;
+          cursor: grab;
+          font-size: 14px;
+          margin-bottom: 8px;
+          user-select: none;
+          line-height: 1.2;
+        }
+
+        .mc-pill.used { opacity: 0.4; cursor: default; }
+
+        /* Editor Specifics */
+        .mc-editor-panel { font-family: Arial, sans-serif; font-size: 13px; color: #333; }
+
+        .mc-ed-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #ddd;
+            padding-bottom: 8px;
+            margin-bottom: 12px;
+        }
+
+        .mc-toolbar {
+          display: flex;
+          gap: 8px;
+          margin-bottom: 15px;
+        }
+
+        .p-canvas-box {
+          border: 1px solid #ccc;
+          border-radius: 4px;
+          overflow: hidden;
+          position: relative;
+          background: #f9f9f9;
+          margin-bottom: 15px;
+        }
+
+        .p-canv-wrap { position: relative; display: inline-block; line-height: 0; }
+        .p-canv-wrap img { max-width: 100%; user-select: none; }
+
+        .p-z-box {
+          position: absolute;
+          border: 1px solid #111;
+          background: rgba(255, 255, 255, 0.7);
+          cursor: move;
+          box-sizing: border-box;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+
+        .p-z-box.active {
+          border: 2px solid #0072bc;
+          box-shadow: 0 0 5px rgba(0,0,0,0.2);
+          z-index: 10;
+        }
+
+        .p-z-box span {
+          font-size: 11px;
+          font-weight: bold;
+          pointer-events: none;
+          padding: 2px;
+          text-align: center;
+          line-height: 1.1;
+        }
+
+        .p-z-box .resizer {
+          position: absolute;
+          right: -4px;
+          bottom: -4px;
+          width: 10px;
+          height: 10px;
+          background: #0072bc;
+          cursor: nwse-resize;
+          border: 1px solid #fff;
+        }
+
+        .p-z-box .z-del {
+          position: absolute;
+          top: -10px;
+          right: -10px;
+          background: #333;
+          color: #fff;
+          border-radius: 50%;
+          width: 20px;
+          height: 20px;
+          border: none;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 14px;
+        }
+
+        .mc-ed-label {
+          font-size: 11px;
+          font-weight: bold;
+          color: #666;
+          text-transform: uppercase;
+          margin-bottom: 4px;
+          display: block;
+        }
+
+        .mc-ed-input {
+          width: 100%;
+          border: 1px solid #ccc;
+          padding: 6px;
+          font-size: 13px;
+          box-sizing: border-box;
+          border-radius: 4px;
+        }
+
+        .prop-row {
+          display: flex;
+          gap: 15px;
+          background: #fcfcfc;
+          padding: 10px;
+          border: 1px solid #eee;
+          border-radius: 6px;
+          margin-bottom: 15px;
+        }
+
+        .prop-field { flex: 1; }
+
+        .mc-btn {
+          padding: 6px 14px;
+          border: 1px solid #ccc;
+          background: #f0f0f0;
+          border-radius: 4px;
+          cursor: pointer;
+          font-weight: bold;
+          font-size: 13px;
+        }
+
+        .mc-btn.active {
+          background: #0072bc;
+          color: #fff;
+          border-color: #0072bc;
+        }
+
+        .mc-btn.primary {
+          background: #0072bc;
+          color: #fff;
+          border: none;
+        }
+
+        /* Two-column layout for editor lists */
+        .mv-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+        .mv-left, .mv-right { min-width: 0; } /* allow proper shrinking */
+        .mv-section-title { margin-bottom: 8px; display: block; font-weight: 700; font-size: 12px; text-transform: uppercase; color: #64748b; }
+
+        @media (max-width: 900px) {
+            .mv-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="editor-container">
+    <div class="header">
+        <h2>Edit Visual Matching Block</h2>
+        <a href="#" id="btnBack" class="btn-cancel">Cancel / Back</a>
+    </div>
+    <div id="editor-mount"></div>
+</div>
+
+<script>
+    /* matching_canvas.block.js Logic - Converted to global object */
+
+    function escapeHtml(s) {
+      return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+    }
+
+    function clamp(n, a, b) {
+      return Math.max(a, Math.min(b, n));
+    }
+
+    // derive helper: keep data.gaps in sync with zones (gap summaries for host counting)
+    function syncDerivedFields(obj) {
+      try {
+        if (!obj) return;
+        // ensure gaps exists and is derived from zones
+        if (Array.isArray(obj.zones)) {
+          obj.gaps = obj.zones
+            .filter(z => z && z.kind === 'gap')
+            .map(z => ({ id: z.id, n: z.n, correctOptionId: z.correctOptionId }));
+        } else {
+          obj.gaps = obj.gaps || [];
+        }
+      } catch (e) {
+        console.warn('syncDerivedFields error', e);
+      }
+    }
+
+    const matchingCanvasBlock = {
+      session: {},
+
+      renderTaker(data, bid) { return this.renderBase(data, 'taker', bid); },
+      renderEditor(data, bid) { return this.renderBase(data, 'editor', bid); },
+
+      renderBase(data, mode, bid) {
+        const root = document.createElement('div');
+        root.className = `matching-canvas-task mode-${mode}`;
+
+        if (!data.image?.dataUrl) {
+          root.innerHTML = `<div class="cbt-placeholder">Map image missing. Please upload in editor.</div>`;
+          return root;
+        }
+
+        const isTaker = mode === 'taker';
+        const sel = isTaker ? (this.session[bid] || {}) : 
+                    Object.fromEntries((data.zones || []).filter(z => z.kind !== 'text' && z.correctOptionId).map(z => [z.id, z.correctOptionId]));
+
+        const zoneHtml = (data.zones || []).map(z => {
+          const isText = z.kind === 'text';
+          const commonStyle = `left:${z.x*100}%; top:${z.y*100}%; width:${z.w*100}%; height:${z.h*100}%; font-size:${z.fontSize || 14}px;`;
+          
+          if (isText) {
+            return `<div class="mc-zone mc-zone--static" style="${commonStyle} color:${z.color || '#333'}; font-weight:${z.bold?'bold':'normal'}; text-align:${z.align || 'center'}; display:flex; align-items:center; justify-content:${z.align==='left'?'flex-start':(z.align==='right'?'flex-end':'center')};">${escapeHtml(z.text)}</div>`;
+          }
+
+          const oid = sel[z.id];
+          const opt = (data.options || []).find(o => o.id === oid);
+          const has = !!opt;
+          const opacity = has ? 1 : (z.opacity || 0.7);
+
+          return `
+            <div class="mc-zone mc-zone--gap is-droppable ${has?'has-answer':''}" 
+                 style="${commonStyle} background: rgba(255,255,255,${opacity});" 
+                 data-zid="${z.id}">
+              ${has 
+                ? `<div class="mc-placed-pill" data-oid="${opt.id}" ${isTaker ? 'draggable="true"' : ''}>
+                    <span>${!isTaker ? `(${z.n}) ` : ''}${escapeHtml(opt.text)}</span>
+                    ${isTaker ? `<button class="mc-clr" data-zid="${z.id}">×</button>` : ''}
+                  </div>`
+                : `<div class="mc-zone-num">${z.n}</div>`
+              }
+            </div>`;
+        }).join('');
+
+        const visibleOpts = (data.options || []).filter(o => !o.isDummy || data.includeDummy);
+        const bankHtml = visibleOpts.map(o => {
+          const used = !data.allowReuse && Object.values(sel).includes(o.id);
+          return `<div class="mc-pill ${used?'used':''}" draggable="${isTaker && !used}" data-oid="${o.id}">${escapeHtml(o.text)}</div>`;
+        }).join('');
+
+        root.innerHTML = `
+          <div class="cbt-instruction-box">
+            <span class="mcq-numbering-text">${escapeHtml(data.numbering || 'Questions 1-5')}</span>
+            <div class="mcq-instruction-content">${escapeHtml(data.instructions || 'Label the diagram.')}</div>
+          </div>
+          <div class="mc-layout">
+            <div class="mc-canvas-side">
+              <div class="mc-card">
+                <div class="mc-img-container" style="max-width:${data.imageSizePct || 100}%">
+                  <img src="${data.image.dataUrl}" alt="diagram">
+                  <div class="mc-overlay">${zoneHtml}</div>
+                </div>
+              </div>
+            </div>
+            <div class="mc-bank-side">
+              <div class="mc-card">
+                <div class="mc-bank-title">Options</div>
+                <div class="mc-bank">${bankHtml}</div>
+              </div>
+            </div>
+          </div>`;
+
+        if (isTaker) {
+          root.querySelectorAll('.mc-pill[draggable="true"], .mc-placed-pill[draggable="true"]').forEach(p => {
+            p.ondragstart = (e) => e.dataTransfer.setData('oid', p.dataset.oid);
+          });
+          root.querySelectorAll('.mc-zone--gap').forEach(z => {
+            z.ondragover = (e) => e.preventDefault();
+            z.ondrop = (e) => {
+              const oid = e.dataTransfer.getData('oid');
+              if (!this.session[bid]) this.session[bid] = {};
+              if (!data.allowReuse) {
+                Object.keys(this.session[bid]).forEach(k => { if(this.session[bid][k] === oid) delete this.session[bid][k]; });
+              }
+              this.session[bid][z.dataset.zid] = oid;
+              root.dispatchEvent(new CustomEvent('block-refresh-needed', { bubbles: true }));
+            };
+          });
+          root.querySelectorAll('.mc-clr').forEach(b => {
+            b.onclick = () => { delete this.session[bid][b.dataset.zid]; root.dispatchEvent(new CustomEvent('block-refresh-needed', { bubbles: true })); };
+          });
+        }
+        return root;
+      },
+
+      renderEditorPanel(data, ctx) {
+        const state = {
+          numbering: data.numbering || 'Questions 1-5',
+          instructions: data.instructions || 'Label the diagram.',
+          image: data.image || null,
+          imageSizePct: data.imageSizePct || 85,
+          zones: Array.isArray(data.zones) ? data.zones.map(z => ({...z})) : [],
+          options: Array.isArray(data.options) ? data.options.map(o => ({...o})) : [],
+          tool: 'gap',
+          activeZid: null
+        };
+
+        const root = document.createElement('div');
+        root.className = 'mc-editor-panel';
+
+        const render = () => {
+          const activeZone = state.zones.find(z => z.id === state.activeZid);
+
+          root.innerHTML = `
+            <div class="mc-ed-header">
+              <strong>Matching Canvas Editor</strong>
+              <button class="mc-btn primary" id="mc-save">Save Block</button>
+            </div>
+
+            <div style="display:flex; gap:8px; margin-bottom:12px;">
+              <div style="flex:1;">
+                <label class="mc-ed-label">Numbering</label>
+                <input type="text" class="mc-ed-input" id="ed-num" value="${escapeHtml(state.numbering)}">
+              </div>
+              <div style="flex:2;">
+                <label class="mc-ed-label">Instructions</label>
+                <input type="text" class="mc-ed-input" id="ed-instr" value="${escapeHtml(state.instructions)}">
+              </div>
+            </div>
+
+            <label class="mc-ed-label">Upload Map Image</label>
+            <input type="file" id="mc-upload" class="mc-ed-input" style="margin-bottom:15px;" accept="image/*">
+
+            <div class="mc-toolbar">
+              <button class="mc-btn ${state.tool==='gap'?'active':''}" id="tool-gap">Add Gap</button>
+              <button class="mc-btn ${state.tool==='text'?'active':''}" id="tool-text">Add Text</button>
+            </div>
+
+            <div class="p-canvas-box">
+              ${state.image && state.image.dataUrl ? `
+                <div class="p-canv-wrap" id="mc-wrapper">
+                  <img src="${state.image.dataUrl}" draggable="false">
+                  ${state.zones.map(z => {
+                    const bg = z.kind === 'gap' ? `rgba(255,255,255,${z.opacity ?? 0.7})` : 'transparent';
+                    const fs = (z.fontSize || 14) + 'px';
+                    return `
+                    <div class="p-z-box ${state.activeZid===z.id?'active':''}" 
+                         style="left:${z.x*100}%; top:${z.y*100}%; width:${z.w*100}%; height:${z.h*100}%; background:${bg};" 
+                         data-zid="${z.id}">
+                      <span style="font-size:${fs};">${z.kind==='text' ? escapeHtml(z.text || 'Text') : z.n}</span>
+                      <div class="resizer"></div>
+                      <button class="z-del">×</button>
+                    </div>
+                  `}).join('')}
+                </div>
+              ` : '<div style="padding:20px; text-align:center;">Upload an image to start labeling.</div>'}
+            </div>
+
+            ${activeZone ? `
+              <div class="prop-row">
+                <div class="prop-field">
+                  <label class="mc-ed-label">Font Size (${activeZone.fontSize || 14}px)</label>
+                  <input type="range" id="z-fs" min="10" max="30" value="${activeZone.fontSize || 14}" style="width:100%">
+                </div>
+                ${activeZone.kind === 'gap' ? `
+                  <div class="prop-field">
+                    <label class="mc-ed-label">Opacity (${activeZone.opacity || 0.7})</label>
+                    <input type="range" id="z-op" min="0" max="1" step="0.1" value="${activeZone.opacity || 0.7}" style="width:100%">
+                  </div>
+                ` : `
+                  <div class="prop-field">
+                    <label class="mc-ed-label">Text Content</label>
+                    <input type="text" id="z-txt" class="mc-ed-input" value="${escapeHtml(activeZone.text || '')}">
+                  </div>
+                `}
+              </div>
+            ` : ''}
+
+            <!-- NEW: Two-column grid: left = Gaps & Correct Answers, right = Options Bank -->
+            <div class="mv-grid">
+              <div class="mv-left">
+                <div class="mc-card">
+                  <div class="mv-section-title">Gaps & Correct Answers</div>
+                  <div id="zone-list" style="margin-bottom:0; max-height: 400px; overflow-y: auto;">
+                    ${state.zones.filter(z => z.kind==='gap').map(z => `
+                      <div style="display:flex; gap:10px; margin-bottom:5px; align-items:center; background:#fff; border:1px solid #eee; padding:5px; border-radius:4px;">
+                        <div style="width:24px; font-weight:bold; text-align:center;">${z.n}</div>
+                        <select class="z-key-sel" data-zid="${z.id}" style="flex:1; padding:4px;">
+                          <option value="">Select label...</option>
+                          ${state.options.map(o => `<option value="${o.id}" ${z.correctOptionId===o.id?'selected':''}>${escapeHtml(o.text)}</option>`).join('')}
+                        </select>
+                      </div>
+                    `).join('')}
+                  </div>
+                </div>
+              </div>
+
+              <div class="mv-right">
+                <div class="mc-card">
+                  <div class="mv-section-title">Options Bank</div>
+                  <div id="opt-list" style="margin-bottom:0;">
+                    ${state.options.map((o, i) => `
+                      <div style="display:flex; gap:5px; margin-bottom:5px;">
+                        <input type="text" class="opt-txt mc-ed-input" data-idx="${i}" value="${escapeHtml(o.text)}">
+                        <button class="mc-btn opt-del" data-idx="${i}" style="color:red">×</button>
+                      </div>
+                    `).join('')}
+                    <button class="mc-btn" id="add-opt" style="width:100%; margin-top:5px;">+ Add Label</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          `;
+
+          attach();
+        };
+
+        const attach = () => {
+          const wrap = root.querySelector('#mc-wrapper');
+
+          // Add new zone logic
+          if (wrap) {
+            wrap.onmousedown = (e) => {
+              if (e.target.closest('.p-z-box, .resizer, .z-del')) return;
+              
+              e.preventDefault();
+              const r = wrap.getBoundingClientRect();
+              const x = (e.clientX - r.left) / r.width;
+              const y = (e.clientY - r.top) / r.height;
+
+              const defaultW = state.tool === 'text' ? 0.20 : 0.12;
+              const defaultH = state.tool === 'text' ? 0.05 : 0.07;
+
+              const z = {
+                id: 'z' + Math.random().toString(36).substr(2, 5),
+                kind: state.tool,
+                x: clamp(x - defaultW/2, 0, 1 - defaultW),
+                y: clamp(y - defaultH/2, 0, 1 - defaultH),
+                w: defaultW, h: defaultH,
+                n: state.zones.filter(zx => zx.kind === 'gap').length + 1,
+                fontSize: 14, opacity: 0.7, text: 'Text Label', correctOptionId: ''
+              };
+
+              state.zones.push(z);
+              state.activeZid = z.id;
+              render();
+            };
+          }
+
+          // --- Replace old mousedown-based handlers with pointer-based drag/resize ---
+          let dragState = null;
+
+          function onPointerMove(e) {
+            if (!dragState) return;
+            const r = dragState.wrapRect;
+            const zid = dragState.zid;
+            const z = state.zones.find(zx => zx.id === zid);
+            if (!z) return;
+
+            const dx = (e.clientX - dragState.startClientX) / r.width;
+            const dy = (e.clientY - dragState.startClientY) / r.height;
+
+            if (dragState.mode === 'move') {
+              // move: clamp so zone stays within canvas bounds
+              z.x = clamp(dragState.startX + dx, 0, 1 - z.w);
+              z.y = clamp(dragState.startY + dy, 0, 1 - z.h);
+            } else { // resize
+              // compute new width/height and clamp to minimum and within bounds
+              const newW = clamp(dragState.startW + dx, 0.02, 1 - z.x);
+              const newH = clamp(dragState.startH + dy, 0.02, 1 - z.y);
+              z.w = newW;
+              z.h = newH;
+            }
+
+            // update the element inline styles live
+            const currentBox = root.querySelector(`.p-z-box[data-zid="${zid}"]`);
+            if (currentBox) {
+              currentBox.style.left = (z.x * 100) + '%';
+              currentBox.style.top = (z.y * 100) + '%';
+              currentBox.style.width = (z.w * 100) + '%';
+              currentBox.style.height = (z.h * 100) + '%';
+            }
+          }
+
+          function onPointerUp(e) {
+            if (!dragState) return;
+            const capturedBox = root.querySelector(`.p-z-box[data-zid="${dragState.zid}"]`);
+            try {
+              if (capturedBox && dragState.pointerId && capturedBox.releasePointerCapture) {
+                capturedBox.releasePointerCapture(dragState.pointerId);
+              }
+            } catch (err) { /* ignore */ }
+
+            window.removeEventListener('pointermove', onPointerMove);
+            window.removeEventListener('pointerup', onPointerUp);
+
+            // finalize by re-rendering once to sync any derived UI
+            const zid = dragState.zid;
+            dragState = null;
+            render();
+          }
+
+          // pointerdown on each zone (supports both move and resize via target check)
+          root.querySelectorAll('.p-z-box').forEach(box => {
+            box.addEventListener('pointerdown', (e) => {
+              // deletion handled immediately if clicked on delete control
+              if (e.target.classList.contains('z-del')) {
+                state.zones = state.zones.filter(z => z.id !== box.dataset.zid);
+                state.zones.filter(z => z.kind==='gap').forEach((z, i) => z.n = i+1);
+                state.activeZid = null;
+                render();
+                return;
+              }
+
+              e.preventDefault();
+              e.stopPropagation();
+
+              const isResize = e.target.classList.contains('resizer');
+              const zid = box.dataset.zid;
+              state.activeZid = zid;
+
+              // capture pointer so we keep receiving events even if cursor leaves the box
+              try { box.setPointerCapture && box.setPointerCapture(e.pointerId); } catch (err) {}
+
+              const wrapRect = wrap ? wrap.getBoundingClientRect() : { width: window.innerWidth, height: window.innerHeight, left: 0, top: 0 };
+
+              const z = state.zones.find(zx => zx.id === zid);
+              if (!z) return;
+
+              dragState = {
+                mode: isResize ? 'resize' : 'move',
+                startClientX: e.clientX,
+                startClientY: e.clientY,
+                startX: z.x,
+                startY: z.y,
+                startW: z.w,
+                startH: z.h,
+                zid: zid,
+                pointerId: e.pointerId,
+                wrapRect: wrapRect
+              };
+
+              // store wrapRect for normalized calculations
+              dragState.wrapRect = wrapRect;
+
+              // attach global pointer listeners
+              window.addEventListener('pointermove', onPointerMove);
+              window.addEventListener('pointerup', onPointerUp);
+            }, { passive: false });
+          });
+
+          // Ensure delete buttons still work if clicked (in case target misses pointer handler)
+          root.querySelectorAll('.z-del').forEach(btn => {
+            btn.onclick = (ev) => {
+              const zid = btn.dataset.zid;
+              state.zones = state.zones.filter(z => z.id !== zid);
+              state.zones.filter(z => z.kind==='gap').forEach((z, i) => z.n = i+1);
+              state.activeZid = null;
+              render();
+            };
+          });
+
+          // Simple Bindings
+          if (root.querySelector('#ed-num')) root.querySelector('#ed-num').oninput = (e) => state.numbering = e.target.value;
+          if (root.querySelector('#ed-instr')) root.querySelector('#ed-instr').oninput = (e) => state.instructions = e.target.value;
+          
+          const activeZone = state.zones.find(z => z.id === state.activeZid);
+          if (activeZone) {
+              if (root.querySelector('#z-fs')) root.querySelector('#z-fs').oninput = (e) => { 
+                activeZone.fontSize = parseInt(e.target.value); 
+                render();
+              };
+              if (root.querySelector('#z-op')) root.querySelector('#z-op').oninput = (e) => { 
+                activeZone.opacity = parseFloat(e.target.value); 
+                render();
+              };
+              if (root.querySelector('#z-txt')) root.querySelector('#z-txt').oninput = (e) => { 
+                activeZone.text = e.target.value; 
+                render();
+              };
+          }
+
+
+          root.querySelectorAll('.z-key-sel').forEach(s => s.onchange = () => state.zones.find(z => z.id === s.dataset.zid).correctOptionId = s.value);
+          root.querySelectorAll('.opt-txt').forEach(i => i.onchange = () => { state.options[i.dataset.idx].text = i.value; render(); });
+          root.querySelectorAll('.opt-del').forEach(b => b.onclick = () => { state.options.splice(b.dataset.idx, 1); render(); });
+          
+          root.querySelector('#add-opt').onclick = () => { state.options.push({id: 'o'+Math.random().toString(36).substr(2,5), text: 'New Label'}); render(); };
+          root.querySelector('#tool-gap').onclick = () => { state.tool = 'gap'; state.activeZid = null; render(); };
+          root.querySelector('#tool-text').onclick = () => { state.tool = 'text'; state.activeZid = null; render(); };
+          
+          root.querySelector('#mc-upload').onchange = (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = () => { state.image = { dataUrl: reader.result }; render(); };
+            reader.readAsDataURL(file);
+          };
+
+          root.querySelector('#mc-save').onclick = () => {
+            // prepare block payload and ensure derived fields (gaps) are synced
+            const newData = {
+                numbering: state.numbering,
+                instructions: state.instructions,
+                image: state.image,
+                imageSizePct: state.imageSizePct,
+                zones: state.zones,
+                options: state.options
+            };
+            syncDerivedFields(newData);
+            ctx.updateBlock(ctx.blockId, newData);
+          };
+        };
+
+        if (!state.options.length) state.options = [{id:'o1', text:'Label A'}, {id:'o2', text:'Label B'}];
+        render();
+        return root;
+      }
+    };
+
+    // --- Initialization Logic ---
+    const SESS_DATA = 'sys_editing_data';
+    const SESS_STATUS = 'sys_editing_status';
+
+    function resolveReturnUrl() {
+        const sessionUrl = sessionStorage.getItem('sys_return_url');
+        if (sessionUrl) return sessionUrl;
+
+        const urlParams = new URLSearchParams(window.location.search);
+        const paramUrl = urlParams.get('returnUrl');
+        if (paramUrl) {
+            const decoded = decodeURIComponent(paramUrl);
+            sessionStorage.setItem('sys_return_url', decoded);
+            return decoded;
+        }
+
+        const ref = document.referrer;
+        if (ref && ref.includes('Test_Editor_') && ref.includes('testId=')) {
+            sessionStorage.setItem('sys_return_url', ref);
+            return ref;
+        }
+
+        return 'Test_Editor_Shell.html';
+    }
+
+    const raw = sessionStorage.getItem(SESS_DATA);
+    
+    const defaultData = {
+        numbering: "Questions 1-5",
+        instructions: "Label the diagram.",
+        image: { dataUrl: null },
+        imageSizePct: 85,
+        zones: [],
+        options: [{ id:"o1", text:"Label A" }, { id:"o2", text:"Label B" }],
+        allowReuse: false,
+        includeDummy: false
+    };
+
+    const data = raw ? JSON.parse(raw) : defaultData;
+
+    // legacy compatibility: ensure data.gaps exists derived from zones if missing
+    if (!Array.isArray(data.gaps)) {
+      syncDerivedFields(data);
+    }
+
+    const ctx = {
+        blockId: 'temp-visual-matching-block',
+        updateBlock: (id, newData) => {
+            sessionStorage.setItem(SESS_DATA, JSON.stringify(newData));
+            sessionStorage.setItem(SESS_STATUS, 'saved');
+            window.location.href = resolveReturnUrl();
+        }
+    };
+
+    document.getElementById('btnBack').href = resolveReturnUrl();
+    document.getElementById('editor-mount').appendChild(matchingCanvasBlock.renderEditorPanel(data, ctx));
+
+</script>
+</body>
+</html>

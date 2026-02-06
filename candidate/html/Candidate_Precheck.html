@@ -1,0 +1,965 @@
+<!-- START OF FILE Candidate_Precheck.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IELTS Mock Test - Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #d20a0a; /* IELTS Red */
+            --primary-hover: #b90909;
+            --text-main: #212121;
+            --text-muted: #757575;
+            --bg: #f3f4f6;
+            --card-bg: #ffffff;
+            --border: #e0e0e0;
+            --success: #16a34a;
+            --warning: #ca8a04;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'Roboto', sans-serif;
+            background-color: var(--bg);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* --- Header --- */
+        header {
+            background: white;
+            height: 64px;
+            padding: 0 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--text-main);
+        }
+
+        .brand span.red { color: var(--primary); }
+        .brand .divider { height: 24px; width: 1px; background: #ddd; }
+        .brand .subtitle { font-weight: 400; font-size: 16px; color: var(--text-main); }
+
+        .header-icons {
+            display: flex;
+            gap: 16px;
+            color: var(--text-muted);
+        }
+
+        .icon { width: 24px; height: 24px; fill: currentColor; }
+
+        /* --- Main Layout --- */
+        .main-container {
+            width: 100%;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 24px 16px;
+            flex: 1;
+        }
+
+        h1 {
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 24px;
+            color: var(--text-main);
+        }
+
+        /* --- Cards --- */
+        .card {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            margin-bottom: 16px;
+            overflow: hidden;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+            transition: all 0.2s;
+        }
+
+        .card-header {
+            padding: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            background: #fff;
+            user-select: none;
+        }
+
+        .card-header:hover { background: #fcfcfc; }
+
+        .card-title {
+            font-size: 18px;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .card-content {
+            padding: 0 20px 20px;
+            border-top: 1px solid transparent;
+            display: none; /* Collapsed by default */
+        }
+
+        .card.expanded .card-content {
+            display: block;
+            border-top-color: var(--border);
+            padding-top: 20px;
+        }
+
+        /* --- Pre-check Specifics --- */
+        .check-status-icon {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .check-status-icon.done { color: var(--success); }
+        .check-status-icon.pending { color: var(--text-muted); }
+
+        .check-row {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            margin-bottom: 16px;
+            padding: 16px;
+            background: #fafafa;
+            border-radius: 6px;
+            border: 1px solid #eee;
+        }
+
+        .check-item {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .check-label { font-weight: 500; font-size: 14px; }
+        
+        .btn-check {
+            align-self: flex-start;
+            padding: 6px 12px;
+            font-size: 13px;
+            border: 1px solid var(--border);
+            background: white;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .btn-check:hover { background: #f5f5f5; }
+
+        /* --- Skill Card Specifics --- */
+        .skill-header-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
+
+        .skill-name { font-size: 18px; font-weight: 700; }
+        .skill-status { font-size: 14px; font-weight: 500; }
+        .status-not-started { color: var(--primary); }
+        .status-completed { color: var(--success); }
+
+        .skill-meta {
+            font-size: 14px;
+            color: var(--text-muted);
+            margin-bottom: 16px;
+        }
+
+        .test-info-toggle {
+            font-size: 14px;
+            color: var(--primary);
+            cursor: pointer;
+            background: none;
+            border: none;
+            padding: 0;
+            margin-bottom: 16px;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+        
+        .test-info-content {
+            background: #f9f9f9;
+            padding: 12px;
+            border-radius: 4px;
+            font-size: 13px;
+            line-height: 1.5;
+            color: #444;
+            margin-bottom: 16px;
+            display: none;
+        }
+        .test-info-content.visible { display: block; }
+
+        .btn-primary {
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            width: 100%;
+            transition: background 0.2s;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            background-color: var(--primary-hover);
+        }
+
+        .btn-primary:disabled {
+            background-color: #e0e0e0;
+            color: #9e9e9e;
+            cursor: not-allowed;
+        }
+        
+        /* Inputs & Checks */
+        .typing-area {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        input[type="text"] {
+            padding: 8px;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            flex: 1;
+        }
+        .char-count { font-size: 12px; color: var(--text-muted); }
+
+        /* --- Error View --- */
+        .error-container {
+            max-width: 400px;
+            margin: 100px auto;
+            text-align: center;
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        .hidden { display: none !important; }
+
+        /* Network Footer */
+        .footer-bar {
+            text-align: center;
+            padding: 10px;
+            font-size: 12px;
+            color: var(--text-muted);
+            border-top: 1px solid #eee;
+            background: white;
+        }
+
+        /* Submit Test Button */
+        #submitTestContainer {
+            margin-top: 24px;
+            padding: 24px;
+            background: white;
+            border: 2px solid var(--primary);
+            border-radius: 8px;
+            text-align: center;
+        }
+        
+        #submitTestContainer h2 {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 12px;
+            color: var(--text-main);
+        }
+        
+        #submitTestContainer p {
+            font-size: 14px;
+            color: var(--text-muted);
+            margin-bottom: 16px;
+        }
+        
+        .btn-submit-test {
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            padding: 14px 32px;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+            min-width: 200px;
+        }
+        
+        .btn-submit-test:hover {
+            background-color: var(--primary-hover);
+        }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+        
+        .modal-content {
+            background: white;
+            border-radius: 8px;
+            padding: 24px;
+            max-width: 400px;
+            width: 90%;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+        }
+        
+        .modal-title {
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 12px;
+            color: var(--text-main);
+        }
+        
+        .modal-message {
+            font-size: 14px;
+            color: var(--text-muted);
+            margin-bottom: 24px;
+            line-height: 1.5;
+        }
+        
+        .modal-buttons {
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+        }
+        
+        .btn-modal {
+            padding: 10px 24px;
+            border-radius: 4px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            border: none;
+            transition: all 0.2s;
+        }
+        
+        .btn-modal-cancel {
+            background: #e0e0e0;
+            color: var(--text-main);
+        }
+        
+        .btn-modal-cancel:hover {
+            background: #d0d0d0;
+        }
+        
+        .btn-modal-submit {
+            background: var(--primary);
+            color: white;
+        }
+        
+        .btn-modal-submit:hover {
+            background: var(--primary-hover);
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Header -->
+    <header>
+        <div class="brand">
+            <span class="red">IELTS</span>
+            <div class="divider"></div>
+            <span class="subtitle">IELTS on Computer</span>
+        </div>
+        <div class="header-icons">
+            <!-- Simple SVG icons placeholder -->
+            <svg class="icon" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg>
+            <svg class="icon" viewBox="0 0 24 24"><path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2zm6-6v-5c0-3.07-1.63-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.64 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2zm-2 1H8v-6c0-2.48 1.51-4.5 4-4.5s4 2.02 4 4.5v6z"/></svg>
+        </div>
+    </header>
+
+    <!-- Error View -->
+    <div id="viewError" class="error-container hidden">
+        <h2 style="color: var(--primary); margin-bottom: 16px;">Something went wrong</h2>
+        <p id="errorReason" style="color: #555; margin-bottom: 24px;">Something went wrong. Please contact the proctor for help.</p>
+        <button onclick="window.location.href='Candidate_Entry.html'" class="btn-primary">Retry Login</button>
+    </div>
+
+    <!-- Dashboard View -->
+    <div id="viewDashboard" class="main-container hidden">
+        <h1>Today</h1>
+
+        <!-- Card: Pre-test Checks -->
+        <div class="card expanded" id="cardChecks">
+            <div class="card-header" onclick="CANDIDATE_DASH.toggleChecks()">
+                <div class="card-title">Pre-test checks</div>
+                <div id="checksStatusIcon" class="check-status-icon pending">
+                    <!-- SVG for circle outline or tick -->
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                        <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                    </svg>
+                </div>
+            </div>
+            <div class="card-content">
+                <p style="margin-bottom: 16px; font-size: 14px; color: #666;">
+                    Please complete the system checks below to enable your exam modules.
+                </p>
+
+                <!-- Check A: Audio -->
+                <div class="check-row">
+                    <div class="check-item">
+                        <span class="check-label">1. Audio Check</span>
+                        <div style="display:flex; gap:10px; align-items:center;">
+                            <button id="btnPlaySound" class="btn-check">▶ Play Sound</button>
+                            <label style="font-size:14px; display:flex; align-items:center; gap:6px;">
+                                <input type="checkbox" id="chkAudio" disabled>
+                                I heard the sound clearly
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Check B: Typing -->
+                <div class="check-row">
+                    <div class="check-item">
+                        <span class="check-label">2. Typing Check</span>
+                        <div class="typing-area">
+                            <input type="text" id="inputTyping" placeholder="Type: IELTS MOCK" autocomplete="off">
+                            <span class="char-count"><span id="charCount">0</span>/10</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Check C: Fullscreen -->
+                <div style="text-align:right;">
+                    <button id="btnFullscreen" class="btn-check" style="border:none; color:var(--primary);">⛶ Enter Fullscreen</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Skills Container -->
+        <div id="skillsContainer">
+            <!-- Dynamic Skill Cards will be injected here -->
+        </div>
+
+        <!-- Submit Test Container (shown when all components completed) -->
+        <div id="submitTestContainer" class="hidden">
+            <h2>Ready to Submit Your Test</h2>
+            <p>You have completed all test components. Click the button below to submit your test.</p>
+            <button class="btn-submit-test" onclick="CANDIDATE_DASH.showSubmitConfirmation()">Submit Test</button>
+        </div>
+
+    </div>
+
+    <!-- Confirmation Modal -->
+    <div id="submitModal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <div class="modal-title">Submit your test?</div>
+            <div class="modal-message">This will submit all your answers. You cannot make changes after this.</div>
+            <div class="modal-buttons">
+                <button class="btn-modal btn-modal-cancel" onclick="CANDIDATE_DASH.closeSubmitConfirmation()">Cancel</button>
+                <button class="btn-modal btn-modal-submit" onclick="CANDIDATE_DASH.confirmSubmitTest()">Submit</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer Status -->
+    <div class="footer-bar">
+        <span id="netText">Network: Checking...</span>
+    </div>
+
+<script type="module">
+    /**
+     * Candidate_Precheck.js (Updated for Dashboard Hub)
+     */
+    
+    import { submitTest, retryPendingSubmission } from '../app/candidate.test.controller.js';
+    import { lockAnswers } from '../answers/candidate.answers.store.js';
+    import { setCandidateStatus } from '../../db/db.proctor.js';
+    import { getUserFriendlyError } from '../app/candidate.utils.js';
+    
+    // --- State ---
+    const state = {
+        audioConfirmed: false,
+        typingConfirmed: false,
+        checksCompleted: false,
+        scheduleId: sessionStorage.getItem('candidate_schedule_id'),
+        rosterId: sessionStorage.getItem('candidate_roster_id'),
+        examId: sessionStorage.getItem('candidate_exam_id'),
+        testerId: sessionStorage.getItem('candidate_tester_id'),
+        
+        // Data derived from session
+        examComponents: [],
+        progress: { completedSkills: [] }
+    };
+
+    // --- Data Loaders ---
+    function loadSessionData() {
+        try {
+            // Components
+            const rawComp = sessionStorage.getItem('candidate_exam_components');
+            if (rawComp) {
+                state.examComponents = JSON.parse(rawComp);
+            }
+            
+            // Progress - candidate-specific key
+            const candidateKey = state.testerId || state.rosterId || 'default';
+            const progressKey = `candidate_progress_${candidateKey}`;
+            const rawProg = sessionStorage.getItem(progressKey);
+            if (rawProg) {
+                state.progress = JSON.parse(rawProg);
+            } else {
+                state.progress = { completedSkills: [] };
+                sessionStorage.setItem(progressKey, JSON.stringify(state.progress));
+            }
+            
+            // Load check states - candidate-specific key
+            const checksKey = `candidate_checks_${candidateKey}`;
+            const rawChecks = sessionStorage.getItem(checksKey);
+            if (rawChecks) {
+                const checks = JSON.parse(rawChecks);
+                state.audioConfirmed = checks.audioConfirmed || false;
+                state.typingConfirmed = checks.typingConfirmed || false;
+                state.checksCompleted = checks.checksCompleted || false;
+            }
+        } catch (e) {
+            console.error("[ERROR_DATA_001] Error parsing session data", e);
+            const userFriendlyError = getUserFriendlyError('Data corruption detected', 'DATA_001');
+            renderError(userFriendlyError);
+            return false;
+        }
+        return true;
+    }
+
+    function getSkillInstructions(skill) {
+        // Simple mapping, reused from data layer concept
+        const map = {
+            'Listening': 'You will hear audio recordings. Answer as you listen.',
+            'Reading': 'Read the passages and answer the questions. Manage your time.',
+            'Writing': 'Complete the writing tasks within the time limit.',
+            'Speaking': 'Speak clearly into the microphone.'
+        };
+        return map[skill] || 'Follow the instructions on the screen.';
+    }
+
+    // --- Init ---
+    function init() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const mode = urlParams.get('mode') || 'check';
+        const reason = urlParams.get('reason');
+
+        setupNetworkListener();
+
+        if (mode === 'error') {
+            renderError(reason);
+            return;
+        }
+
+        if (!state.scheduleId || !state.rosterId) {
+            const userFriendlyError = getUserFriendlyError('Session expired', 'SESSION_001');
+            renderError(userFriendlyError);
+            return;
+        }
+
+        if (!loadSessionData()) return;
+
+        // Render Dashboard
+        document.getElementById('viewError').classList.add('hidden');
+        document.getElementById('viewDashboard').classList.remove('hidden');
+
+        setupChecks();
+        renderSkills();
+        
+        // Update UI with loaded check states
+        if (state.checksCompleted) {
+            updateChecksUI();
+        }
+    }
+
+    // --- Renderers ---
+    function renderError(msg) {
+        document.getElementById('viewDashboard').classList.add('hidden');
+        document.getElementById('viewError').classList.remove('hidden');
+        document.getElementById('errorReason').textContent = msg || "Something went wrong. Please contact the proctor for help.";
+    }
+
+    function renderSkills() {
+        const container = document.getElementById('skillsContainer');
+        container.innerHTML = ''; // clear
+
+        if (!state.examComponents || state.examComponents.length === 0) {
+            container.innerHTML = '<p style="text-align:center; padding:20px; color:#666;">No exam modules found.</p>';
+            return;
+        }
+
+        let nextFound = false;
+
+        state.examComponents.forEach((comp, index) => {
+            const skillName = comp.skillSnapshot || comp.skill || `Module ${index + 1}`;
+            const timeMin = (comp.rules && comp.rules.timeLimitMin) ? comp.rules.timeLimitMin : null;
+            const isCompleted = state.progress.completedSkills.includes(skillName);
+            
+            // Determine state: Completed, Next (Active), or Locked
+            let statusClass = 'status-not-started';
+            let statusText = 'Not completed';
+            let btnText = `Start ${skillName}`;
+            let btnDisabled = true;
+            let isNext = false;
+
+            if (isCompleted) {
+                statusClass = 'status-completed';
+                statusText = 'Completed';
+                btnText = 'Completed';
+            } else {
+                if (!nextFound) {
+                    // This is the first incomplete skill -> It is "Next"
+                    isNext = true;
+                    nextFound = true;
+                    // Only enable if checks passed
+                    if (state.checksCompleted) {
+                        btnDisabled = false;
+                    }
+                } else {
+                    // Subsequent incomplete skills are locked
+                    btnDisabled = true;
+                }
+            }
+
+            // Create Card HTML
+            const card = document.createElement('div');
+            card.className = 'card';
+            
+            const timeHtml = timeMin ? `<div class="skill-meta">Timing: ${timeMin} minutes</div>` : '';
+
+            card.innerHTML = `
+                <div class="card-content" style="display:block; padding: 20px;">
+                    <div class="skill-header-row">
+                        <span class="skill-name">${skillName}</span>
+                        <span class="skill-status ${statusClass}">${statusText}</span>
+                    </div>
+                    ${timeHtml}
+                    
+                    <button class="test-info-toggle" onclick="this.nextElementSibling.classList.toggle('visible')">
+                        <span>▶</span> Test information
+                    </button>
+                    <div class="test-info-content">
+                        ${getSkillInstructions(skillName)}
+                    </div>
+
+                    <button class="btn-primary" ${btnDisabled ? 'disabled' : ''} 
+                        onclick="CANDIDATE_DASH.startModule('${skillName}', '${comp.testId}')">
+                        ${btnText}
+                    </button>
+                </div>
+            `;
+            container.appendChild(card);
+        });
+        
+        // Check if all components are completed
+        checkAndShowSubmitButton();
+    }
+    
+    function checkAndShowSubmitButton() {
+        const submitContainer = document.getElementById('submitTestContainer');
+        
+        // Check if test already submitted
+        const isSubmitted = sessionStorage.getItem('test_submitted') === 'true';
+        
+        if (isSubmitted) {
+            // Show success view if already submitted
+            submitContainer.innerHTML = `
+                <h2>Test submitted successfully</h2>
+                <p>Your answers are locked. Please wait for instructions.</p>
+            `;
+            submitContainer.classList.remove('hidden');
+            return;
+        }
+        
+        // Check if all exam components are completed
+        const allCompleted = state.examComponents.length > 0 && 
+            state.examComponents.every(comp => {
+                const skillName = comp.skillSnapshot || comp.skill || '';
+                return state.progress.completedSkills.includes(skillName);
+            });
+        
+        if (allCompleted) {
+            submitContainer.classList.remove('hidden');
+        } else {
+            submitContainer.classList.add('hidden');
+        }
+    }
+
+    function updateChecksUI() {
+        const icon = document.getElementById('checksStatusIcon');
+        const card = document.getElementById('cardChecks');
+        
+        if (state.checksCompleted) {
+            // Mark as done
+            icon.classList.remove('pending');
+            icon.classList.add('done');
+            icon.innerHTML = `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
+            
+            // Collapse card automatically if it was user initiated
+            card.classList.remove('expanded');
+        } else {
+            icon.classList.add('pending');
+            icon.classList.remove('done');
+            icon.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle></svg>`;
+        }
+
+        // Re-render skills to enable/disable buttons
+        renderSkills();
+    }
+
+    // --- Actions ---
+
+    window.CANDIDATE_DASH = {
+        toggleChecks: () => {
+            document.getElementById('cardChecks').classList.toggle('expanded');
+        },
+        startModule: async (skill, testId) => {
+            if (!state.checksCompleted) return;
+
+            if (state.scheduleId && state.rosterId) {
+                try {
+                    await setCandidateStatus(state.scheduleId, state.rosterId, 'in_progress');
+                } catch (e) {
+                    console.warn('[startModule] Failed to update candidate status:', e);
+                }
+            }
+            
+            // Save selection
+            sessionStorage.setItem('candidate_current_skill', skill);
+            sessionStorage.setItem('candidate_current_test_id', testId || '');
+            
+            // Redirect
+            const target = `Candidate_Test.html?scheduleId=${state.scheduleId}&rosterId=${state.rosterId}&examId=${state.examId}&skill=${encodeURIComponent(skill)}&testId=${testId||''}`;
+            window.location.href = target;
+        },
+        showSubmitConfirmation: () => {
+            document.getElementById('submitModal').classList.remove('hidden');
+        },
+        closeSubmitConfirmation: () => {
+            document.getElementById('submitModal').classList.add('hidden');
+        },
+        confirmSubmitTest: async () => {
+            try {
+                // Close modal
+                document.getElementById('submitModal').classList.add('hidden');
+                
+                // Show loading state
+                const submitBtn = document.querySelector('.btn-submit-test');
+                const originalText = submitBtn.textContent;
+                submitBtn.textContent = 'Submitting...';
+                submitBtn.disabled = true;
+                
+                // Call submitTest function
+                await submitTest();
+                
+                // Lock answers
+                lockAnswers();
+                
+                // Show success view inline
+                const submitContainer = document.getElementById('submitTestContainer');
+                submitContainer.innerHTML = `
+                    <h2>Test submitted successfully</h2>
+                    <p>Your answers are locked. Please wait for instructions.</p>
+                `;
+                
+            } catch (error) {
+                console.error('[ERROR_SUBMIT_001] Failed to submit test:', error);
+                const userFriendlyError = getUserFriendlyError(error.message || 'Submission failed', 'SUBMIT_001');
+                
+                // Show retry UI inside submitContainer
+                const submitContainer = document.getElementById('submitTestContainer');
+                submitContainer.innerHTML = `
+                    <h2>Submission Issue</h2>
+                    <p>${userFriendlyError}</p>
+                    <div style="display: flex; gap: 12px; justify-content: center; margin-top: 16px;">
+                        <button class="btn-submit-test" onclick="CANDIDATE_DASH.retrySubmission()" style="background: var(--primary); min-width: 120px;">Retry</button>
+                        <button class="btn-submit-test" onclick="CANDIDATE_DASH.cancelRetry()" style="background: #e0e0e0; color: var(--text-main); min-width: 120px;">Cancel</button>
+                    </div>
+                `;
+            }
+        },
+        retrySubmission: async () => {
+            try {
+                const submitContainer = document.getElementById('submitTestContainer');
+                submitContainer.innerHTML = `
+                    <h2>Retrying submission...</h2>
+                    <p>Please wait...</p>
+                `;
+                
+                // Retry pending submission
+                await retryPendingSubmission();
+                
+                // Lock answers
+                lockAnswers();
+                
+                // Show success view
+                submitContainer.innerHTML = `
+                    <h2>Test submitted successfully</h2>
+                    <p>Your answers are locked. Please wait for instructions.</p>
+                `;
+                
+            } catch (error) {
+                console.error('[ERROR_RETRY_001] Retry failed:', error);
+                const userFriendlyError = getUserFriendlyError(error.message || 'Retry failed', 'RETRY_001');
+                
+                // Show retry UI again
+                const submitContainer = document.getElementById('submitTestContainer');
+                submitContainer.innerHTML = `
+                    <h2>Submission Issue</h2>
+                    <p>${userFriendlyError}</p>
+                    <div style="display: flex; gap: 12px; justify-content: center; margin-top: 16px;">
+                        <button class="btn-submit-test" onclick="CANDIDATE_DASH.retrySubmission()" style="background: var(--primary); min-width: 120px;">Retry</button>
+                        <button class="btn-submit-test" onclick="CANDIDATE_DASH.cancelRetry()" style="background: #e0e0e0; color: var(--text-main); min-width: 120px;">Cancel</button>
+                    </div>
+                `;
+            }
+        },
+        cancelRetry: () => {
+            // Restore original submit button
+            const submitContainer = document.getElementById('submitTestContainer');
+            submitContainer.innerHTML = `
+                <h2>Ready to Submit Your Test</h2>
+                <p>You have completed all test components. Click the button below to submit your test.</p>
+                <button class="btn-submit-test" onclick="CANDIDATE_DASH.showSubmitConfirmation()">Submit Test</button>
+            `;
+        }
+    };
+
+    // --- Check Logic ---
+
+    function setupChecks() {
+        // Audio
+        const btnPlay = document.getElementById('btnPlaySound');
+        const chkAudio = document.getElementById('chkAudio');
+
+        btnPlay.addEventListener('click', () => {
+            try {
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                if (!AudioContext) {
+                    alert("Web Audio not supported.");
+                    return;
+                }
+                const ctx = new AudioContext();
+                
+                // Play sequence: A4 (440) -> C5 (523) -> E5 (659)
+                const now = ctx.currentTime;
+                
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                
+                osc.type = 'sine';
+                
+                // Sequence logic using frequency automation
+                osc.frequency.setValueAtTime(440, now);
+                osc.frequency.setValueAtTime(523, now + 1.0);
+                osc.frequency.setValueAtTime(659, now + 2.0);
+                
+                // Volume envelope
+                gain.gain.setValueAtTime(0.1, now);
+                gain.gain.linearRampToValueAtTime(0.2, now + 0.5);
+                gain.gain.setValueAtTime(0.2, now + 3.0);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 4.0);
+                
+                osc.start(now);
+                osc.stop(now + 4.0);
+
+                chkAudio.disabled = false;
+            } catch (e) {
+                console.error(e);
+                alert("Audio error: " + e.message);
+            }
+        });
+
+        chkAudio.addEventListener('change', (e) => {
+            state.audioConfirmed = e.target.checked;
+            validateChecks();
+        });
+
+        // Typing
+        const input = document.getElementById('inputTyping');
+        const count = document.getElementById('charCount');
+        
+        input.addEventListener('input', (e) => {
+            const val = e.target.value;
+            count.textContent = val.length;
+            
+            // Simple validation: > 10 chars or exact match "IELTS MOCK"
+            // Prompt required "IELTS MOCK" and >10 chars in original?
+            // "Type this sentence: IELTS MOCK" - len is 10.
+            const valid = val.length >= 10; 
+            
+            state.typingConfirmed = valid;
+            validateChecks();
+        });
+
+        // Fullscreen
+        document.getElementById('btnFullscreen').addEventListener('click', () => {
+            const el = document.documentElement;
+            if (el.requestFullscreen) el.requestFullscreen();
+            else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
+        });
+    }
+
+    function validateChecks() {
+        const allGood = state.audioConfirmed && state.typingConfirmed;
+        if (allGood !== state.checksCompleted) {
+            state.checksCompleted = allGood;
+            
+            // Persist check states to sessionStorage with candidate-specific key
+            const candidateKey = state.testerId || state.rosterId || 'default';
+            const checksKey = `candidate_checks_${candidateKey}`;
+            sessionStorage.setItem(checksKey, JSON.stringify({
+                audioConfirmed: state.audioConfirmed,
+                typingConfirmed: state.typingConfirmed,
+                checksCompleted: state.checksCompleted
+            }));
+            
+            updateChecksUI();
+        }
+    }
+
+    // --- Network ---
+    function setupNetworkListener() {
+        const el = document.getElementById('netText');
+        const update = () => {
+            el.textContent = navigator.onLine ? "Network: Online" : "Network: Offline";
+            el.style.color = navigator.onLine ? "var(--text-muted)" : "var(--primary)";
+        };
+        window.addEventListener('online', update);
+        window.addEventListener('offline', update);
+        update();
+    }
+
+    // Run
+    init();
+
+</script>
+</body>
+</html>

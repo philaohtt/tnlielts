@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Exam Management | Proctor</title>
+    <style>
+        :root { --ielts-blue: #0072bc; --bg: #f4f7f9; --text: #333; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 40px; }
+        .container { max-width: 1000px; margin: 0 auto; }
+        
+        .header-flex { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
+        h1 { margin: 0; font-size: 24px; }
+
+        .create-card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); display: flex; gap: 10px; margin-bottom: 30px; }
+        input { flex: 1; padding: 12px; border: 1px solid #ddd; border-radius: 4px; font-size: 16px; }
+        button { padding: 10px 20px; border-radius: 4px; border: none; cursor: pointer; font-weight: 600; transition: 0.2s; }
+        .btn-primary { background: var(--ielts-blue); color: white; }
+        .btn-primary:hover:not(:disabled) { opacity: 0.9; }
+        .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+        .btn-outline { background: white; border: 1px solid #ddd; color: #666; }
+        .btn-outline:hover { background: #f9f9f9; }
+
+        .filter-bar { margin-bottom: 20px; display: flex; gap: 10px; align-items: center; }
+        select { padding: 8px; border-radius: 4px; border: 1px solid #ddd; }
+
+        table { width: 100%; border-collapse: collapse; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+        th, td { padding: 16px; text-align: left; border-bottom: 1px solid #eee; }
+        th { background: #f8fafb; font-size: 13px; text-transform: uppercase; color: #888; letter-spacing: 0.5px; }
+        
+        .badge { padding: 4px 8px; border-radius: 12px; font-size: 12px; font-weight: bold; text-transform: uppercase; }
+        .badge-draft { background: #e0e0e0; color: #666; }
+        .badge-published { background: #e3f9e5; color: #1f7a1f; }
+        .badge-closed { background: #ffe9e9; color: #c53030; }
+        .badge-warning { background: #fff4e5; color: #b7791f; margin-left: 6px; font-size: 10px; }
+        .badge-ready { background: #e3f9e5; color: #1f7a1f; margin-left: 6px; font-size: 10px; }
+        .badge-not-ready { background: #ffe9e9; color: #c53030; margin-left: 6px; font-size: 10px; }
+
+        .actions { display: flex; gap: 8px; align-items: center; }
+        .actions a { text-decoration: none; font-size: 13px; color: var(--ielts-blue); font-weight: 600; }
+        .btn-status { font-size: 11px; padding: 4px 8px; }
+
+        .validation-icon { cursor: help; margin-left: 6px; font-size: 14px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header-flex">
+            <h1>Exam Dashboard</h1>
+        </div>
+
+        <div class="create-card">
+            <input type="text" id="examTitle" placeholder="Enter Exam Title (e.g., IELTS Academic Mock - March)">
+            <button class="btn-primary" id="btnCreate">Create Draft Exam</button>
+        </div>
+
+        <div class="filter-bar">
+            <span>Filter Status:</span>
+            <select id="statusFilter">
+                <option value="all">All Statuses</option>
+                <option value="draft">Draft</option>
+                <option value="published">Published</option>
+                <option value="closed">Closed</option>
+            </select>
+        </div>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Exam Title</th>
+                    <th>Status</th>
+                    <th>Components</th>
+                    <th>Last Updated</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="examTableBody">
+                <tr><td colspan="5">Loading exams...</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <script type="module">
+        import { EXAMS } from "../../db/db.exams.js";
+
+        async function loadExams() {
+            const filter = document.getElementById('statusFilter').value;
+            const tableBody = document.getElementById('examTableBody');
+            
+            try {
+                const exams = await EXAMS.listExams();
+                tableBody.innerHTML = '';
+
+                const filtered = exams.filter(e => filter === 'all' || e.status === filter);
+
+                if (filtered.length === 0) {
+                    tableBody.innerHTML = '<tr><td colspan="5">No exams found.</td></tr>';
+                    return;
+                }
+
+                filtered.forEach(exam => {
+                    const row = document.createElement('tr');
+                    const date = exam.updatedAt?.toDate ? exam.updatedAt.toDate().toLocaleDateString() : 'Just now';
+                    const compCount = exam.components?.length || 0;
+                    
+                    // Use centralized validation
+                    const validation = EXAMS.validateExam(exam);
+
+                    // Build validation badge and tooltip
+                    let validationBadge = '';
+                    let validationTooltip = '';
+
+                    if (validation.errors.length > 0) {
+                        validationTooltip = 'Not Ready:\n' + validation.errors.map(e => '• ' + e).join('\n');
+                        validationBadge = `<span class="badge badge-not-ready" title="${validationTooltip.replace(/\n/g, '&#10;')}">Not Ready</span>`;
+                    } else if (validation.warnings.length > 0) {
+                        validationTooltip = 'Ready with Warnings:\n' + validation.warnings.map(w => '• ' + w).join('\n');
+                        validationBadge = `<span class="badge badge-warning" title="${validationTooltip.replace(/\n/g, '&#10;')}">Ready (Warnings)</span>`;
+                    } else {
+                        validationBadge = `<span class="badge badge-ready">Ready</span>`;
+                    }
+
+                    let statusActions = '';
+
+                    if (exam.status === 'draft') {
+                        if (validation.isValid) {
+                            statusActions = `<button class="btn-primary btn-status" onclick="updateStatus('${exam.id}', 'published')">Publish</button>`;
+                        } else {
+                            const errorList = validation.errors.map(e => '• ' + e).join('&#10;');
+                            statusActions = `<button class="btn-primary btn-status" disabled title="Cannot publish:&#10;${errorList}">Publish</button>`;
+                        }
+                    } else if (exam.status === 'published') {
+                        statusActions = `<button class="btn-outline btn-status" onclick="updateStatus('${exam.id}', 'closed')">Close</button>`;
+                    } else if (exam.status === 'closed') {
+                        statusActions = `<button class="btn-outline btn-status" onclick="updateStatus('${exam.id}', 'published')">Reopen</button>`;
+                    }
+
+                    row.innerHTML = `
+                        <td><strong>${exam.title}</strong></td>
+                        <td>
+                            <span class="badge badge-${exam.status}">${exam.status}</span>
+                            ${validationBadge}
+                        </td>
+                        <td>${compCount} Tests</td>
+                        <td>${date}</td>
+                        <td class="actions">
+                            <a href="Exam_Editor.html?examId=${exam.id}">EDIT</a>
+                            <a href="#" onclick="alert('Preview logic goes here')">PREVIEW</a>
+                            ${statusActions}
+                        </td>
+                    `;
+                    tableBody.appendChild(row);
+                });
+            } catch (err) {
+                console.error('Error loading exams:', err);
+                tableBody.innerHTML = '<tr><td colspan="5">Error loading exams.</td></tr>';
+            }
+        }
+
+        window.updateStatus = async (id, status) => {
+            // Additional validation before publishing
+            if (status === 'published') {
+                const exam = await EXAMS.getExam(id);
+                const validation = EXAMS.validateExam(exam);
+                
+                if (!validation.isValid) {
+                    alert(`Cannot publish exam:\n\n${validation.errors.join('\n')}`);
+                    return;
+                }
+
+                // Show warnings but allow publish
+                if (validation.warnings.length > 0) {
+                    const proceed = confirm(
+                        `Exam has warnings:\n\n${validation.warnings.join('\n')}\n\nPublish anyway?`
+                    );
+                    if (!proceed) return;
+                }
+            }
+
+            if (confirm(`Change status to ${status}?`)) {
+                await EXAMS.setExamStatus(id, status);
+                loadExams();
+            }
+        };
+
+        document.getElementById('btnCreate').onclick = async () => {
+            const title = document.getElementById('examTitle').value;
+            if (!title) return alert("Please enter a title");
+            const id = await EXAMS.createExam({ title });
+            window.location.href = `Exam_Editor.html?examId=${id}`;
+        };
+
+        document.getElementById('statusFilter').onchange = loadExams;
+        loadExams();
+    </script>
+</body>
+</html>
