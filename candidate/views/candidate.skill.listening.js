@@ -345,7 +345,16 @@ export function renderListeningTestUI() {
         }
         if (type === 'mcq_set') {
             const questions = Array.isArray(data.questions) ? data.questions : [];
-            return questions.reduce((sum, q) => sum + (q.correctAnswerCount || (q.allowMultiple ? 2 : 1)), 0);
+            return questions.reduce((sum, q) => {
+                let correctAnswerCount = q.correctAnswerCount;
+                if (!correctAnswerCount && Array.isArray(q.correctIndices)) {
+                    correctAnswerCount = q.correctIndices.length;
+                }
+                if (!correctAnswerCount) {
+                    correctAnswerCount = q.allowMultiple ? 2 : 1;
+                }
+                return sum + correctAnswerCount;
+            }, 0);
         }
         return 0;
     };
@@ -594,16 +603,22 @@ export function renderListeningTestUI() {
                     const questions = block.data?.questions || [];
                     nums.forEach((numEl, qIdx) => {
                         const question = questions[qIdx] || {};
-                        const correctAnswerCount = question.correctAnswerCount || (question.allowMultiple ? 2 : 1);
+                        let correctAnswerCount = question.correctAnswerCount;
+                        if (!correctAnswerCount && Array.isArray(question.correctIndices)) {
+                            correctAnswerCount = question.correctIndices.length;
+                        }
+                        if (!correctAnswerCount) {
+                            correctAnswerCount = question.allowMultiple ? 2 : 1;
+                        }
                         const startNum = counter + 1;
                         counter += correctAnswerCount;
-                        
+
                         if (correctAnswerCount > 1) {
                             numEl.textContent = `${startNum}-${counter}`;
                         } else {
                             numEl.textContent = String(startNum);
                         }
-                        
+
                         // Get the outer container div (parent of the div containing the span)
                         const titleEl = numEl.closest('div')?.parentElement;
                         if (titleEl) {
@@ -694,14 +709,19 @@ export function renderListeningTestUI() {
                             // Handle MCQ questions with potential multi-answer
                             const questions = Array.isArray(data.questions) ? data.questions : [];
                             questions.forEach(q => {
-                                const correctAnswerCount = q.correctAnswerCount || (q.allowMultiple ? 2 : 1);
+                                // Use correctIndices.length if correctAnswerCount is not set
+                                let correctAnswerCount = q.correctAnswerCount;
+                                if (!correctAnswerCount && Array.isArray(q.correctIndices)) {
+                                    correctAnswerCount = q.correctIndices.length;
+                                }
+                                if (!correctAnswerCount) {
+                                    correctAnswerCount = q.allowMultiple ? 2 : 1;
+                                }
                                 const startNum = currentGlobalNum;
                                 const endNum = currentGlobalNum + correctAnswerCount - 1;
-                                
                                 const numberDisplay = correctAnswerCount > 1 ? `${startNum}-${endNum}` : `${startNum}`;
                                 const isActive = currentGlobalNum === testPageState.activeQuestionNumber;
                                 const answered = answeredMap.get(currentGlobalNum);
-                                
                                 cards.push(`<button class="question-num-btn ${isActive ? 'active' : ''} ${answered ? 'has-answer' : ''}" data-qnum="${startNum}" title="Question ${numberDisplay}">${numberDisplay}</button>`);
                                 currentGlobalNum += correctAnswerCount;
                             });

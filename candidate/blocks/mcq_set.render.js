@@ -7,11 +7,21 @@ export function renderMcqSetBlock(block, ctx) {
     const instruction = data.instruction || data.instructions || '';
     const questions = Array.isArray(data.questions) ? data.questions : [];
 
+    // Always use correctAnswerCount for numbering and cards
+    let currentNum = ctx && ctx.startNumber ? ctx.startNumber : 1;
     const qHtml = questions.map((q, qi) => {
         const qId = q.id || `q_${qi}`;
         const allowMultiple = !!q.allowMultiple;
         const saved = ctx.getMcqAnswer ? ctx.getMcqAnswer(block.id, qId) : null;
         const isMulti = allowMultiple === true;
+        // Always prioritize correctAnswerCount for candidate clarity
+        let correctAnswerCount = q.correctAnswerCount;
+        if (!correctAnswerCount && Array.isArray(q.correctIndices)) {
+            correctAnswerCount = q.correctIndices.length;
+        }
+        if (!correctAnswerCount) {
+            correctAnswerCount = allowMultiple ? 2 : 1;
+        }
 
         const opts = (q.options || []).map((opt, oi) => {
             const checked = isMulti
@@ -38,12 +48,21 @@ export function renderMcqSetBlock(block, ctx) {
             `;
         }).join('');
 
-        return `
+        // Numbering for MCQ: show expanded numbering if correctAnswerCount > 1
+        let numberingHtml = '';
+        if (correctAnswerCount > 1) {
+            numberingHtml = `<span class="mcq-question-number">${currentNum}-${currentNum + correctAnswerCount - 1}</span>`;
+        } else {
+            numberingHtml = `<span class="mcq-question-number">${currentNum}</span>`;
+        }
+        const questionHtml = `
             <div style="margin-bottom: 16px;">
-                <div style="font-weight: 600; margin-bottom: 8px;"><span class="mcq-question-number">${qi + 1}</span>. ${escapeHtml(q.prompt || '')}</div>
+                <div style="font-weight: 600; margin-bottom: 8px;">${numberingHtml}. ${escapeHtml(q.prompt || '')}</div>
                 <div>${opts}</div>
             </div>
         `;
+        currentNum += correctAnswerCount;
+        return questionHtml;
     }).join('');
 
     return `

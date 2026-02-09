@@ -471,7 +471,14 @@ function renderQuestionRow(ctx) {
         } else if (type === 'mcq_set') {
             const questions = Array.isArray(data.questions) ? data.questions : [];
             questions.forEach((q, qIdx) => {
-                const correctAnswerCount = q.correctAnswerCount || (q.allowMultiple ? 2 : 1);
+                // Use correctIndices.length if correctAnswerCount is not set
+                let correctAnswerCount = q.correctAnswerCount;
+                if (!correctAnswerCount && Array.isArray(q.correctIndices)) {
+                    correctAnswerCount = q.correctIndices.length;
+                }
+                if (!correctAnswerCount) {
+                    correctAnswerCount = q.allowMultiple ? 2 : 1;
+                }
                 const startNum = currentNum;
                 currentNum += correctAnswerCount;
                 const key = `${blockIdx}-${qIdx}`;
@@ -540,12 +547,12 @@ function renderQuestionRow(ctx) {
             questions.forEach((q, qIdx) => {
                 const key = `${blockIdx}-${qIdx}`;
                 const numberDisplay = mcqNumberRanges[key] || '';
+                const correctAnswerCount = q.correctAnswerCount || (q.allowMultiple ? 2 : 1);
                 const isActive = currentGlobalNum === activeQuestionNum;
                 const hasAns = hasAnswer(currentGlobalNum);
-                
+
+                // For MCQ with multiple correct answers, show a single card with the range (e.g., 28-30)
                 html += `<button class="question-num-btn ${isActive ? 'active' : ''} ${hasAns ? 'has-answer' : ''}" data-qnum="${currentGlobalNum}" title="Question ${numberDisplay}">${numberDisplay}</button>`;
-                
-                const correctAnswerCount = q.correctAnswerCount || (q.allowMultiple ? 2 : 1);
                 currentGlobalNum += correctAnswerCount;
             });
         } else {
