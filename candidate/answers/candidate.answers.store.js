@@ -1,3 +1,32 @@
+// Enable autosave on tab/page close
+export function enableDraftGuards() {
+    // Save when user switches tab / closes page
+    window.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'hidden') syncProgress();
+    });
+    window.addEventListener('pagehide', () => {
+        syncProgress();
+    });
+}
+// Build canonical skill answers from local draft format
+export function buildSkillFromDraft({ scheduleId, rosterId, skill }) {
+    const obj = getDraftAnswersObj({ scheduleId, rosterId, skill });
+    const metaKey = getDraftMetaKey(scheduleId, rosterId, skill);
+    let meta = {};
+    try { meta = JSON.parse(localStorage.getItem(metaKey) || '{}'); } catch {}
+
+    const answersByQid = obj.answersByQid || {};
+    const answers = { gap: {}, mcq: {}, matching: {}, tfng: {}, writing: {}, speaking: {} };
+
+    for (const [qid, val] of Object.entries(answersByQid)) {
+        const [type, ...rest] = String(qid).split(':');
+        const id = rest.join(':');
+        if (!answers[type]) continue;
+        answers[type][id] = val;
+    }
+
+    return { testId: meta.testId || null, answers };
+}
 // Answer locking functions
 export function lockAnswers() {
     sessionStorage.setItem('answers_locked', 'true');
@@ -7,107 +36,77 @@ export function isLocked() {
     return sessionStorage.getItem('answers_locked') === 'true';
 }
 
-// Write functions with lock protection - DEPRECATED: Use centralized saveAnswer() instead
-// Kept for backward compatibility only, but should not be used for new code
-export function saveAnswerToStorage(testId, taskIndexOrKey, text) {
-    console.warn('[answers] saveAnswerToStorage is deprecated. Use saveAnswer() with skill parameter.');
-    if (isLocked()) return;
-    // Attempt to infer skill from context
-    const skill = sessionStorage.getItem('current_skill');
-    if (skill) {
-        saveAnswer({ skill, testId, type: 'gap', id: taskIndexOrKey, value: text });
-    }
+// All answer writes MUST go through saveAnswer() to ensure autosave to Firestore for cross-device resume.
+// All legacy storage functions are now fully deprecated and removed.
+
+// Deterministic key helpers
+// All draft keys must include both scheduleId and rosterId (never reuse across candidates)
+function getDraftKey(scheduleId, rosterId, skill) {
+    if (!scheduleId || !rosterId) throw new Error('Draft key requires scheduleId and rosterId');
+    return `draft_answers:${scheduleId}:${rosterId}:${skill}`;
+}
+function getDraftMetaKey(scheduleId, rosterId, skill) {
+    if (!scheduleId || !rosterId) throw new Error('Draft meta key requires scheduleId and rosterId');
+    return `draft_meta:${scheduleId}:${rosterId}:${skill}`;
 }
 
-export function getAnswerFromStorage(testId, keySuffix) {
-    console.warn('[answers] getAnswerFromStorage is deprecated. Use getAnswer() with skill parameter.');
-    const skill = sessionStorage.getItem('current_skill');
-    if (skill) {
-        return getAnswer({ skill, testId, type: 'gap', id: keySuffix });
-    }
-    return '';
-}
 
-export function getMcqAnswerFromStorage(testId, blockId, questionId) {
-    console.warn('[answers] getMcqAnswerFromStorage is deprecated. Use getAnswer() with skill parameter.');
-    const skill = sessionStorage.getItem('current_skill') || 'listening';
-    return getAnswer({ skill, testId, type: 'mcq', id: `${blockId}:${questionId}` });
-}
-
-export function setMcqAnswerToStorage(testId, blockId, questionId, value) {
-    console.warn('[answers] setMcqAnswerToStorage is deprecated. Use saveAnswer() with skill parameter.');
-    if (isLocked()) return;
-    const skill = sessionStorage.getItem('current_skill') || 'listening';
-    saveAnswer({ skill, testId, type: 'mcq', id: `${blockId}:${questionId}`, value });
-}
-
-export function getMatchingAnswerFromStorage(testId, blockId) {
-    console.warn('[answers] getMatchingAnswerFromStorage is deprecated. Use getAnswer() with skill parameter.');
-    const skill = sessionStorage.getItem('current_skill') || 'listening';
-    return getAnswer({ skill, testId, type: 'matching', id: blockId });
-}
-
-export function setMatchingAnswerToStorage(testId, blockId, matches) {
-    console.warn('[answers] setMatchingAnswerToStorage is deprecated. Use saveAnswer() with skill parameter.');
-    if (isLocked()) return;
-    const skill = sessionStorage.getItem('current_skill') || 'listening';
-    saveAnswer({ skill, testId, type: 'matching', id: blockId, value: matches });
-}
-
-export function getTfngAnswerFromStorage(testId, blockId, questionId) {
-    console.warn('[answers] getTfngAnswerFromStorage is deprecated. Use getAnswer() with skill parameter.');
-    const skill = sessionStorage.getItem('current_skill') || 'reading';
-    return getAnswer({ skill, testId, type: 'tfng', id: `${blockId}:${questionId}` });
-}
-
-export function setTfngAnswerToStorage(testId, blockId, questionId, value) {
-    console.warn('[answers] setTfngAnswerToStorage is deprecated. Use saveAnswer() with skill parameter.');
-    if (isLocked()) return;
-    const skill = sessionStorage.getItem('current_skill') || 'reading';
-    saveAnswer({ skill, testId, type: 'tfng', id: `${blockId}:${questionId}`, value });
-}
-
-function writeToStorages(key, value) {
+function writeDraftAnswer({ scheduleId, rosterId, skill, qid, value }) {
+    if (!scheduleId || !rosterId || !skill || !qid) return;
+    const key = getDraftKey(scheduleId, rosterId, skill);
+    let obj = {};
     try {
-        if (typeof sessionStorage !== 'undefined') sessionStorage.setItem(key, value);
-    } catch (e) {
-        console.warn('[answers] sessionStorage write failed:', e);
-    }
+        obj = JSON.parse(localStorage.getItem(key) || '{}');
+    } catch {}
+    obj.answersByQid = obj.answersByQid || {};
+    obj.answersByQid[qid] = value;
+    obj.updatedAtMs = Date.now();
+    localStorage.setItem(key, JSON.stringify(obj));
+}
+
+function writeDraftMeta({ scheduleId, rosterId, skill, testId }) {
+    if (!scheduleId || !rosterId || !skill || !testId) return;
+    const metaKey = getDraftMetaKey(scheduleId, rosterId, skill);
+    const meta = {
+        testId,
+        updatedAtMs: Date.now()
+    };
     try {
-        if (typeof localStorage !== 'undefined') localStorage.setItem(key, value);
-    } catch (e) {
-        console.warn('[answers] localStorage write failed:', e);
+        localStorage.setItem(metaKey, JSON.stringify(meta));
+    } catch {}
+}
+
+function readDraftAnswer({ scheduleId, rosterId, skill, qid }) {
+    if (!scheduleId || !rosterId || !skill || !qid) return undefined;
+    const key = getDraftKey(scheduleId, rosterId, skill);
+    try {
+        const obj = JSON.parse(localStorage.getItem(key) || '{}');
+        return obj.answersByQid ? obj.answersByQid[qid] : undefined;
+    } catch {
+        return undefined;
     }
 }
 
-function readFromStorages(key) {
+function getDraftAnswersObj({ scheduleId, rosterId, skill }) {
+    if (!scheduleId || !rosterId || !skill) return {};
+    const key = getDraftKey(scheduleId, rosterId, skill);
     try {
-        if (typeof sessionStorage !== 'undefined') {
-            const v = sessionStorage.getItem(key);
-            if (v !== null && v !== undefined) return v;
-        }
-    } catch (e) {
-        console.warn('[answers] sessionStorage read failed:', e);
+        return JSON.parse(localStorage.getItem(key) || '{}');
+    } catch {
+        return {};
     }
-    try {
-        if (typeof localStorage !== 'undefined') return localStorage.getItem(key);
-    } catch (e) {
-        console.warn('[answers] localStorage read failed:', e);
-    }
-    return null;
 }
 function sanitizeForId(value) {
     return String(value || 'unknown').replace(/[^a-zA-Z0-9]/g, '_');
 }
 
 export function ensureAttemptId() {
-    // Remove global reuse logic. AttemptId will be stored per-candidate.
-    const candidateKey = sessionStorage.getItem('candidate_roster_id') || sessionStorage.getItem('candidate_tester_id');
+    // Use Option B: att_{scheduleId}_{rosterId} for attemptId, matching db.attempts.js
+    const rosterId = sessionStorage.getItem('candidate_roster_id') || sessionStorage.getItem('candidate_tester_id');
     const scheduleId = sessionStorage.getItem('candidate_schedule_id');
-    const examId = sessionStorage.getItem('candidate_exam_id');
-    if (!candidateKey || !scheduleId || !examId) return null;
-    const attemptId = `draft_${sanitizeForId(candidateKey)}_${sanitizeForId(scheduleId)}_${sanitizeForId(examId)}`;
-    const storageKey = `test_attempt_id:${candidateKey}`;
+    if (!rosterId || !scheduleId) return null;
+    const attemptId = `att_${sanitizeForId(scheduleId)}_${sanitizeForId(rosterId)}`;
+    const storageKey = `test_attempt_id:${rosterId}:${scheduleId}`;
     sessionStorage.setItem(storageKey, attemptId);
     try {
         if (typeof localStorage !== 'undefined') localStorage.setItem(storageKey, attemptId);
@@ -119,17 +118,17 @@ export function ensureAttemptId() {
 
 let __syncTimer = null;
 
-async function syncProgress() {
+export async function syncProgress() {
     const attemptId = ensureAttemptId();
     if (!attemptId) return;
     try {
-        const { upsertAttemptProgress } = await import('../../db/db.attempts.js');
+        const { upsertAttemptProgress, upsertAttemptSkill } = await import('../../db/db.attempts.js');
         const candidateId = sessionStorage.getItem('candidate_roster_id') || sessionStorage.getItem('candidate_tester_id');
         const scheduleId = sessionStorage.getItem('candidate_schedule_id');
         const examId = sessionStorage.getItem('candidate_exam_id');
         const candidateName = sessionStorage.getItem('candidate_full_name') || '';
         const testerId = sessionStorage.getItem('candidate_tester_id') || '';
-        const skills = buildSkillsPayload({});
+
         await upsertAttemptProgress({
             attemptId,
             candidateId,
@@ -137,9 +136,19 @@ async function syncProgress() {
             examId,
             candidateName,
             testerId,
-            skills,
             status: 'in_progress'
         });
+
+        // push draft answers per-skill
+        for (const skill of ['listening','reading','writing','speaking']) {
+            const payload = buildSkillFromDraft({ scheduleId, rosterId: candidateId, skill });
+            const answers = payload?.answers || {};
+            const testId = payload?.testId || null;
+            const hasAny = Object.values(answers).some(m => m && Object.keys(m).length);
+            if (hasAny) {
+                await upsertAttemptSkill(attemptId, skill, { testId, answers }); // ✅ include testId
+            }
+        }
     } catch (e) {
         console.warn('[answers] Progress sync failed:', e);
     }
@@ -243,28 +252,19 @@ function safeJsonParse(value) {
  */
 export function saveAnswer({ skill, testId, type, id, value }) {
     if (isLocked()) return;
-    
     // Validate required parameters
     if (!skill || !testId || !type || !id) {
         console.error('[answers] saveAnswer requires skill, testId, type, and id');
         return;
     }
-    
-    // Normalize skill
-    const normalizedSkill = String(skill).toLowerCase();
-    const validSkills = ['listening', 'reading', 'writing', 'speaking'];
-    if (!validSkills.includes(normalizedSkill)) {
-        console.error(`[answers] Invalid skill: ${skill}`);
-        return;
-    }
-    
-    const attemptId = ensureAttemptId();
-    if (!attemptId) return;
-    const key = `canonical:${attemptId}:${normalizedSkill}:${testId}:${type}:${id}`;
-    const storageValue = (type === 'mcq' || type === 'matching') 
-        ? JSON.stringify(value) 
-        : String(value ?? '');
-    writeToStorages(key, storageValue);
+    // Use deterministic localStorage draft key
+    const scheduleId = sessionStorage.getItem('candidate_schedule_id');
+    const rosterId = sessionStorage.getItem('candidate_roster_id') || sessionStorage.getItem('candidate_tester_id');
+    if (!scheduleId || !rosterId) return;
+    // store as "type:id" so we can rebuild canonical answers maps
+    writeDraftAnswer({ scheduleId, rosterId, skill, qid: `${type}:${id}`, value });
+    // also store meta once
+    writeDraftMeta({ scheduleId, rosterId, skill, testId });
     queueProgressSync();
 }
 
@@ -282,21 +282,33 @@ export function getAnswer({ skill, testId, type, id }) {
         console.error('[answers] getAnswer requires skill, testId, type, and id');
         return null;
     }
-    
-    const attemptId = ensureAttemptId();
-    if (!attemptId) return null;
-    const normalizedSkill = String(skill).toLowerCase();
-    const key = `canonical:${attemptId}:${normalizedSkill}:${testId}:${type}:${id}`;
-    const raw = readFromStorages(key);
-    if (!raw) return (type === 'mcq' || type === 'matching') ? null : '';
+
+    const scheduleId = sessionStorage.getItem('candidate_schedule_id');
+    const rosterId = sessionStorage.getItem('candidate_roster_id') || sessionStorage.getItem('candidate_tester_id');
+    if (!scheduleId || !rosterId) return null;
+
+    const draftKey = `draft_answers:${scheduleId}:${rosterId}:${skill}`;
+    let obj = {};
+    try { obj = JSON.parse(localStorage.getItem(draftKey) || '{}'); } catch {}
+
+    // ✅ MUST match saveAnswer(): `${type}:${id}`
+    const qid = `${type}:${id}`;
+    const value = obj.answersByQid ? obj.answersByQid[qid] : undefined;
+
+    if (value === undefined || value === null) {
+        return (type === 'mcq' || type === 'matching') ? null : '';
+    }
+
+    // If mcq/matching stored as object, return it directly; if string, try parse
     if (type === 'mcq' || type === 'matching') {
         try {
-            return JSON.parse(raw);
+            return typeof value === 'string' ? JSON.parse(value) : value;
         } catch {
             return null;
         }
     }
-    return raw;
+
+    return value;
 }
 
 function ensureSkillPayload(skills, skill, testId, blocksSnapshot) {
@@ -392,7 +404,21 @@ function readStoredAnswerEntries(callback) {
 
 export function buildSkillsPayload(currentStateOrContext = {}) {
     const skills = {};
+    const scheduleId = sessionStorage.getItem('candidate_schedule_id');
+    const rosterId = sessionStorage.getItem('candidate_roster_id') || sessionStorage.getItem('candidate_tester_id');
+    const skillList = ['listening', 'reading', 'writing', 'speaking'];
 
+    // Prefer local drafts if present
+    if (scheduleId && rosterId) {
+        for (const skill of skillList) {
+            const obj = getDraftAnswersObj({ scheduleId, rosterId, skill });
+            if (obj && obj.answersByQid && Object.keys(obj.answersByQid).length > 0) {
+                skills[skill] = buildSkillFromDraft({ scheduleId, rosterId, skill });
+            }
+        }
+    }
+
+    // Fallback to legacy/canonical sources if no draft for a skill
     const sourceMaps = [
         currentStateOrContext.answers,
         currentStateOrContext.answerMap,

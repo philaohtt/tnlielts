@@ -1,9 +1,6 @@
-import { db } from "../core/firebase.js";
-import { 
 
-// filepath: c:\Users\GA\OneDrive\Teach and Learn\Admin\IELTS app html\db.attempts.js
-    collection, doc, setDoc, serverTimestamp, getDocs, query, orderBy, getDoc, updateDoc
-} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { db } from "../core/firebase.js";
+import { collection, doc, setDoc, serverTimestamp, getDocs, query, orderBy, getDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 const ATTEMPTS_COL = 'attempts';
 
@@ -131,6 +128,7 @@ export async function upsertAttemptSkill(attemptId, skill, payload = {}) {
 
     const data = {
         skill: s,
+        testId: payload.testId || null,        // ✅ ADD THIS
         answers: payload.answers || {},     // normalized canonical answers
         autoscore: payload.autoscore || null,
         manual: payload.manual || null,
@@ -202,7 +200,19 @@ export async function getAttemptById(attemptId) {
     try {
         const snap = await getDoc(doc(db, ATTEMPTS_COL, attemptId));
         if (!snap.exists()) return null;
-        return { id: snap.id, attemptId: snap.id, ...snap.data() };
+
+        const attempt = { id: snap.id, attemptId: snap.id, ...snap.data() };
+
+        // ✅ Load skills subcollection
+        const skillsSnap = await getDocs(collection(db, ATTEMPTS_COL, attemptId, 'skills'));
+        const skills = {};
+        skillsSnap.forEach(d => {
+            const s = d.id; // listening/reading/writing/speaking
+            skills[s] = d.data();
+        });
+
+        attempt.skills = skills; // ✅ this is what examiner expects
+        return attempt;
     } catch (e) {
         console.error('Error loading attempt:', e);
         throw e;

@@ -1,3 +1,6 @@
+// Force an immediate sync of local draft answers to Firestore
+import { syncProgress, buildSkillFromDraft, enableDraftGuards } from '../answers/candidate.answers.store.js';
+import { getAttemptSkillDoc } from '../../db/db.attempts.js';
 import { loadCandidateTest } from "../data/candidate.test.data.js";
 import { resolveComponentFromUrlOrSession, getOrderedComponents } from "../data/candidate.examplan.data.js";
 import { renderListeningTestUI, stopListeningAudio } from "../views/candidate.skill.listening.js";
@@ -604,6 +607,7 @@ export async function switchSkill(skillName) {
 
 export async function initCandidateTestPage() {
     try {
+        enableDraftGuards();
         hydrateAnswersFromLocal();
         if (!sessionStorage.getItem('test_submitted')) {
             try {
@@ -632,12 +636,12 @@ export async function initCandidateTestPage() {
         const rawCandidateName = sessionStorage.getItem('candidate_full_name') || '';
         const candidateName = rawCandidateName || '-';
         const candidateId = sessionStorage.getItem('candidate_tester_id') || '-';
-        
+
         // Update header with test info
         const headerCandidateName = document.getElementById('hdr_candidateName');
         const headerTesterId = document.getElementById('hdr_testerId');
         const headerExamTitle = document.getElementById('hdr_examTitle');
-        
+
         if (headerCandidateName) {
             headerCandidateName.textContent = candidateName;
         }
@@ -654,6 +658,27 @@ export async function initCandidateTestPage() {
 
         // Prepare writing tasks
         testPageState.writingTasks = getWritingTasks(testData);
+
+        // --- Restore answers from latest draft (Firestore or local) for each skill ---
+        const skillList = ['listening', 'reading', 'writing', 'speaking'];
+        for (const skill of skillList) {
+            await loadAndApplyDraft({
+                sessionId: sessionStorage.getItem('candidate_schedule_id'),
+                rosterId: sessionStorage.getItem('candidate_roster_id') || sessionStorage.getItem('candidate_tester_id'),
+                skill,
+                applyDraft: (answersByQid) => {
+                    // Rebuild canonical answers and store in localStorage in canonical format
+                    const scheduleId = sessionStorage.getItem('candidate_schedule_id');
+                    const rosterId = sessionStorage.getItem('candidate_roster_id') || sessionStorage.getItem('candidate_tester_id');
+                    const key = `draft_answers:${scheduleId}:${rosterId}:${skill}`;
+                    let obj = {};
+                    try { obj = JSON.parse(localStorage.getItem(key) || '{}'); } catch {}
+                    obj.answersByQid = answersByQid;
+                    obj.updatedAtMs = Date.now();
+                    localStorage.setItem(key, JSON.stringify(obj));
+                }
+            });
+        }
 
         const storedWritingIdx = parseInt(sessionStorage.getItem('activeWritingTaskIndex') || '0', 10);
         testPageState.activeWritingTaskIndex = Number.isFinite(storedWritingIdx) ? storedWritingIdx : 0;
@@ -770,34 +795,44 @@ export async function initCandidateTestPage() {
  */
 export async function submitTest() {
     try {
-        // Get candidate info from session
+        // Force an immediate sync to Firestore to ensure all local answers are saved
+        if (typeof syncProgress === 'function') {
+            await syncProgress();
+        }
+
+        // After sync, build skills from Firestore skill docs if available, else from drafts
         const candidateId = sessionStorage.getItem('candidate_roster_id') || sessionStorage.getItem('candidate_tester_id');
         const scheduleId = sessionStorage.getItem('candidate_schedule_id');
         const examId = sessionStorage.getItem('candidate_exam_id');
-        
-        if (!candidateId || !scheduleId || !examId) {
-            throw new Error('Missing required session data for submission');
-        }
-        
-        const currentSkill = String(testPageState.skill || '').toLowerCase();
-        const testDoc = testPageState.testDoc;
-        const blocksSnapshotBySkill = {};
-        if (testDoc && currentSkill) {
-            const sections = testDoc.data || testDoc.sections || [];
-            const blocks = sections.flatMap(s => s.questions || s.blocks || []);
-            if (blocks.length > 0) {
-                blocksSnapshotBySkill[currentSkill] = blocks;
+        const skillList = ['listening', 'reading', 'writing', 'speaking'];
+        let skills = {};
+        let foundAny = false;
+        let attemptId = sessionStorage.getItem('test_attempt_id') || ensureAttemptId() || undefined;
+        if (attemptId) {
+            for (const skill of skillList) {
+                try {
+                    const doc = await getAttemptSkillDoc(attemptId, skill);
+                    if (doc && doc.answers && Object.keys(doc.answers).length > 0) {
+                        skills[skill] = { testId: doc.testId || null, answers: doc.answers };
+                        foundAny = true;
+                    }
+                } catch {}
             }
         }
-
-        const skills = buildSkillsPayload({
-            skill: currentSkill,
-            currentSkill,
-            blocksSnapshotBySkill
-        });
+        // If no Firestore skills found, fallback to local drafts
+        if (!foundAny) {
+            for (const skill of skillList) {
+                const draft = buildSkillFromDraft({ scheduleId, rosterId: candidateId, skill });
+                if (draft && draft.answers && Object.values(draft.answers).some(m => m && Object.keys(m).length)) {
+                    skills[skill] = draft;
+                }
+            }
+        }
+        // ...existing code...
+        
+        // ...existing code...
         
         // Prepare submission payload
-        let attemptId = sessionStorage.getItem('test_attempt_id') || ensureAttemptId() || undefined;
         const submittedAtClient = new Date().toISOString();
         const submission = {
             attemptId,
@@ -957,4 +992,80 @@ async function ensureSkillStarted({ sessionId, rosterId, skill, testId }) {
       testId: testId || null
     });
   } catch (e) {}
+}
+
+// --- Firestore Draft Autosave ---
+let lastDraftAnswers = null;
+let draftAutosaveInterval = null;
+let lastDraftSaveMs = 0;
+let lastDraftVersion = 0;
+
+function getDraftDocRef(sessionId, rosterId, skill) {
+  const draftId = `draft_${skill}`;
+  return doc(db, "schedules", sessionId, "roster", rosterId, "drafts", draftId);
+}
+
+export async function loadDraftFromFirestore(sessionId, rosterId, skill) {
+  const ref = getDraftDocRef(sessionId, rosterId, skill);
+  const snap = await getDoc(ref);
+  if (!snap.exists()) return null;
+  return snap.data();
+}
+
+export async function saveDraftToFirestore(sessionId, rosterId, skill, answersByQid, deviceId) {
+  const ref = getDraftDocRef(sessionId, rosterId, skill);
+  const payload = {
+    skill,
+    answersByQid,
+    updatedAt: serverTimestamp(),
+    clientUpdatedAtMs: Date.now(),
+    deviceId: deviceId || null,
+    version: ++lastDraftVersion
+  };
+  await setDoc(ref, payload, { merge: true });
+  lastDraftSaveMs = Date.now();
+}
+
+export function startDraftAutosave({ sessionId, rosterId, skill, getAnswersByQid, deviceId }) {
+  if (draftAutosaveInterval) clearInterval(draftAutosaveInterval);
+  lastDraftAnswers = null;
+  draftAutosaveInterval = setInterval(async () => {
+    const answersByQid = getAnswersByQid();
+    if (!answersByQid) return;
+    const changed = JSON.stringify(answersByQid) !== JSON.stringify(lastDraftAnswers);
+    if (changed) {
+      await saveDraftToFirestore(sessionId, rosterId, skill, answersByQid, deviceId);
+      lastDraftAnswers = JSON.parse(JSON.stringify(answersByQid));
+    }
+  }, 10000);
+  // Save on close/hidden
+  window.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') {
+      const answersByQid = getAnswersByQid();
+      saveDraftToFirestore(sessionId, rosterId, skill, answersByQid, deviceId);
+    }
+  });
+  window.addEventListener('pagehide', () => {
+    const answersByQid = getAnswersByQid();
+    saveDraftToFirestore(sessionId, rosterId, skill, answersByQid, deviceId);
+  });
+}
+
+// --- On init: load Firestore draft, then local, pick newer, apply ---
+export async function loadAndApplyDraft({ sessionId, rosterId, skill, applyDraft }) {
+  const cloudDraft = await loadDraftFromFirestore(sessionId, rosterId, skill);
+  const localKey = `draft_answers:${sessionId}:${rosterId}:${skill}`;
+  let localDraft = null;
+  try { localDraft = JSON.parse(localStorage.getItem(localKey) || '{}'); } catch {}
+  const cloudMs = cloudDraft?.clientUpdatedAtMs || 0;
+  const localMs = localDraft?.updatedAtMs || 0;
+  let chosen = null;
+  if (cloudMs > localMs) {
+    chosen = cloudDraft;
+  } else if (localMs > 0) {
+    chosen = localDraft;
+  }
+  if (chosen && chosen.answersByQid) {
+    applyDraft(chosen.answersByQid);
+  }
 }
