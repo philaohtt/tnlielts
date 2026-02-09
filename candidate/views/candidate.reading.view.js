@@ -981,17 +981,94 @@ function setupReadingBlockEventHandlers(questionsContent, ctx) {
         const blockId = block.dataset.blockId;
         if (!blockId) return;
 
-        const pills = block.querySelectorAll('.mc-pill');
-        const zones = block.querySelectorAll('.mc-zone--gap');
 
-        pills.forEach(pill => {
-            pill.draggable = true;
-            pill.addEventListener('dragstart', (e) => {
-                e.dataTransfer.effectAllowed = 'move';
-                // FIX: Use optionLetter (renderer sets this, not optionId)
-                e.dataTransfer.setData('text/plain', pill.dataset.optionLetter);
-            });
-        });
+                const pills = block.querySelectorAll('.mc-pill');
+                const zones = block.querySelectorAll('.mc-zone--gap');
+
+                // --- Matching-visual drag/drop helpers (Listening-style) ---
+                const allowReuse = block.dataset.allowReuse === 'true';
+                let didDrop = false;
+                let lastDragSourceZoneId = null;
+
+                const updateBankUsage = (matches) => {
+                    if (allowReuse) return;
+                    const used = new Set(Object.values(matches || {}));
+                    block.querySelectorAll('.mc-pill').forEach(p => {
+                        const isUsed = used.has(p.dataset.optionLetter);
+                        p.classList.toggle('used', isUsed);
+                        p.setAttribute('draggable', isUsed ? 'false' : 'true');
+                        p.style.opacity = isUsed ? '0.4' : '1';
+                        p.style.cursor = isUsed ? 'default' : 'grab';
+                    });
+                };
+
+                const renderZoneEmpty = (zoneEl) => {
+                    const zoneNum = zoneEl.dataset.zoneNum || '';
+                    zoneEl.classList.remove('has-answer');
+                    zoneEl.innerHTML = `<div class="mc-zone-num">${zoneNum}</div>`;
+                };
+
+                const renderZoneFilled = (zoneEl, optionLetter) => {
+                    const bankPill = block.querySelector(`.mc-pill[data-option-letter="${optionLetter}"]`);
+                    const optionText = (bankPill?.textContent || optionLetter).trim();
+                    zoneEl.classList.add('has-answer');
+                    zoneEl.innerHTML = `\n    <div class="mc-placed-pill" data-option-letter="${optionLetter}" draggable="true">\n      <span>${optionText}</span>\n      <button class="mc-clr" data-zone-id="${zoneEl.dataset.zoneId}">×</button>\n    </div>\n  `;
+                };
+
+                pills.forEach(pill => {
+                    pill.draggable = true;
+                    pill.addEventListener('dragstart', (e) => {
+                        e.dataTransfer.effectAllowed = 'move';
+                        e.dataTransfer.setData('text/plain', pill.dataset.optionLetter);
+                    });
+                });
+                // --- Drag-out from placed pill ---
+                block.addEventListener('dragstart', (e) => {
+                    const placed = e.target.closest('.mc-placed-pill');
+                    if (!placed) return;
+                    const zone = placed.closest('.mc-zone--gap');
+                    didDrop = false;
+                    lastDragSourceZoneId = zone?.dataset.zoneId || null;
+                    e.dataTransfer.effectAllowed = 'move';
+                    e.dataTransfer.setData('text/plain', placed.dataset.optionLetter || '');
+                    if (zone?.dataset.zoneId) e.dataTransfer.setData('text/source-zone', zone.dataset.zoneId);
+                });
+
+                block.addEventListener('dragend', (e) => {
+                    // If user dragged the placed pill out and did not drop into another zone → remove answer
+                    if (didDrop || !lastDragSourceZoneId) return;
+                    const matches = answerCtx.getAnswer(blockId) || {};
+                    const sourceZoneEl = block.querySelector(`.mc-zone--gap[data-zone-id="${lastDragSourceZoneId}"]`);
+                    const sourceZoneNum = sourceZoneEl?.dataset.zoneNum;
+                    if (sourceZoneNum) {
+                        delete matches[sourceZoneNum];
+                        answerCtx.setAnswer(blockId, matches);
+                        if (sourceZoneEl) renderZoneEmpty(sourceZoneEl);
+                        updateBankUsage(matches);
+                        const qnum = parseInt(sourceZoneEl?.dataset.qnum || '', 10);
+                        if (!Number.isNaN(qnum)) updateQuestionButtonStatus(qnum);
+                        updatePartRowCounts();
+                    }
+                    lastDragSourceZoneId = null;
+                });
+
+                // --- Click-to-remove (×) handler ---
+                block.addEventListener('click', (e) => {
+                    const btn = e.target.closest('.mc-clr');
+                    if (!btn) return;
+                    const zoneId = btn.dataset.zoneId;
+                    const zoneEl = block.querySelector(`.mc-zone--gap[data-zone-id="${zoneId}"]`);
+                    const zoneNum = zoneEl?.dataset.zoneNum;
+                    if (!zoneNum) return;
+                    const matches = answerCtx.getAnswer(blockId) || {};
+                    delete matches[zoneNum];
+                    answerCtx.setAnswer(blockId, matches);
+                    if (zoneEl) renderZoneEmpty(zoneEl);
+                    updateBankUsage(matches);
+                    const qnum = parseInt(zoneEl?.dataset.qnum || '', 10);
+                    if (!Number.isNaN(qnum)) updateQuestionButtonStatus(qnum);
+                    updatePartRowCounts();
+                });
 
         // Helper to re-render the block after answer changes
         function rerenderBlock() {
@@ -1017,98 +1094,44 @@ function setupReadingBlockEventHandlers(questionsContent, ctx) {
         }
 
         zones.forEach(zone => {
-            // --- Drag over/drop logic (existing) ---
-            zone.addEventListener('dragover', (e) => {
-                e.preventDefault();
-                e.dataTransfer.dropEffect = 'move';
-                zone.classList.add('is-over');
-            });
-            zone.addEventListener('dragleave', () => {
-                zone.classList.remove('is-over');
-            });
-            // --- Drop handler: place pill ---
-            zone.addEventListener('drop', (e) => {
-                e.preventDefault();
-                const optionLetter = e.dataTransfer.getData('text/plain');
-                const zoneNum = zone.dataset.zoneNum;
-                if (optionLetter && zoneNum) {
-                    const matches = answerCtx.getAnswer(blockId) || {};
-                    matches[zoneNum] = optionLetter;
-                    answerCtx.setAnswer(blockId, matches);
-                    // UI update: show placed pill, make it draggable and double-clickable
-                    zone.innerHTML = `<span class="mc-placed-pill" data-option-letter="${optionLetter}" draggable="true" style="cursor:grab;">${optionLetter}</span>`;
-                    zone.classList.add('has-answer');
-                    // Optionally, disable the pill in the bank (if needed)
-                    const pill = block.querySelector(`.mc-pill[data-option-letter="${optionLetter}"]`);
-                    if (pill) {
-                        pill.classList.add('used');
-                        pill.setAttribute('draggable', 'false');
-                    }
-                    const qnum = parseInt(zone.dataset.qnum, 10);
-                    if (!Number.isNaN(qnum)) {
-                        updateQuestionButtonStatus(qnum);
-                    }
-                    updatePartRowCounts();
-                }
-                zone.classList.remove('is-over');
-            });
-            // --- Double-click to remove pill from zone ---
-            zone.addEventListener('dblclick', (e) => {
-                const pill = zone.querySelector('.mc-placed-pill');
-                if (pill) {
-                    const optionLetter = pill.dataset.optionLetter;
-                    const zoneNum = zone.dataset.zoneNum;
-                    if (optionLetter && zoneNum) {
-                        const matches = answerCtx.getAnswer(blockId) || {};
-                        delete matches[zoneNum];
-                        answerCtx.setAnswer(blockId, matches);
-                        rerenderBlock();
-                        // No need to manually update UI or pills, rerender handles it
-                        const qnum = parseInt(zone.dataset.qnum, 10);
-                        if (!Number.isNaN(qnum)) {
-                            updateQuestionButtonStatus(qnum);
-                        }
-                        updatePartRowCounts();
-                    }
-                }
-            });
-
-            // --- Drag out to remove pill from zone ---
-            zone.addEventListener('dragstart', (e) => {
-                const pill = zone.querySelector('.mc-placed-pill');
-                if (pill) {
-                    const optionLetter = pill.dataset.optionLetter;
-                    if (optionLetter) {
-                        e.dataTransfer.effectAllowed = 'move';
-                        e.dataTransfer.setData('text/plain', optionLetter);
-                        // Mark this zone as the drag source
-                        zone.classList.add('drag-source');
-                    }
-                }
-            });
-            zone.addEventListener('dragend', (e) => {
-                // If dropped outside a valid target, remove the answer
-                if (zone.classList.contains('drag-source') && e.dataTransfer.dropEffect === 'none') {
-                    const pill = zone.querySelector('.mc-placed-pill');
-                    if (pill) {
-                        const optionLetter = pill.dataset.optionLetter;
-                        const zoneNum = zone.dataset.zoneNum;
-                        if (optionLetter && zoneNum) {
-                            const matches = answerCtx.getAnswer(blockId) || {};
-                            delete matches[zoneNum];
-                            answerCtx.setAnswer(blockId, matches);
-                            rerenderBlock();
-                            // No need to manually update UI or pills, rerender handles it
-                            const qnum = parseInt(zone.dataset.qnum, 10);
-                            if (!Number.isNaN(qnum)) {
-                                updateQuestionButtonStatus(qnum);
+                        // --- Drag over/drop logic ---
+                        zone.addEventListener('dragover', (e) => {
+                            e.preventDefault();
+                            e.dataTransfer.dropEffect = 'move';
+                            zone.classList.add('is-over');
+                        });
+                        zone.addEventListener('dragleave', () => {
+                            zone.classList.remove('is-over');
+                        });
+                        // --- Drop handler: place pill ---
+                        zone.addEventListener('drop', (e) => {
+                            e.preventDefault();
+                            didDrop = true;
+                            const optionLetter = e.dataTransfer.getData('text/plain');
+                            const zoneNum = zone.dataset.zoneNum;
+                            if (optionLetter && zoneNum) {
+                                const matches = answerCtx.getAnswer(blockId) || {};
+                                // Handle moving from one zone to another
+                                const sourceZoneId = e.dataTransfer.getData('text/source-zone');
+                                if (sourceZoneId && sourceZoneId !== zone.dataset.zoneId) {
+                                    const srcEl = block.querySelector(`.mc-zone--gap[data-zone-id="${sourceZoneId}"]`);
+                                    const srcNum = srcEl?.dataset.zoneNum;
+                                    if (srcNum) delete matches[srcNum];
+                                    if (srcEl) renderZoneEmpty(srcEl);
+                                }
+                                matches[zoneNum] = optionLetter;
+                                answerCtx.setAnswer(blockId, matches);
+                                renderZoneFilled(zone, optionLetter);
+                                updateBankUsage(matches);
+                                const qnum = parseInt(zone.dataset.qnum, 10);
+                                if (!Number.isNaN(qnum)) updateQuestionButtonStatus(qnum);
+                                updatePartRowCounts();
                             }
-                            updatePartRowCounts();
-                        }
-                    }
-                    zone.classList.remove('drag-source');
-                }
-            });
+                            zone.classList.remove('is-over');
+                        });
+            // (Double-click to remove is now handled by click × button)
+            // Initial bank usage update
+            updateBankUsage(answerCtx.getAnswer(blockId) || {});
         });
     });
 

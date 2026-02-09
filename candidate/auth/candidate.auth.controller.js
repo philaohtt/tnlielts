@@ -1,3 +1,36 @@
+// Purge candidate attempt keys from sessionStorage and localStorage
+function purgeCandidateAttemptKeys() {
+    const prefixes = [
+        'canonical:',
+        'candidate_progress_',
+        'candidate_checks_',
+        'candidate_answers:', // legacy
+    ];
+    const exactKeys = [
+        'test_attempt_id',
+        'answers_locked',
+        'test_submitted',
+        'pending_attempt_submission',
+    ];
+    // Remove keys starting with test_ and containing : (legacy)
+    function isLegacyTestKey(key) {
+        return key.startsWith('test_') && key.includes(':');
+    }
+    [sessionStorage, localStorage].forEach(store => {
+        if (!store) return;
+        const keysToRemove = [];
+        for (let i = 0; i < store.length; i++) {
+            const key = store.key(i);
+            if (!key) continue;
+            if (prefixes.some(p => key.startsWith(p)) || exactKeys.includes(key) || isLegacyTestKey(key)) {
+                keysToRemove.push(key);
+            }
+        }
+        keysToRemove.forEach(key => {
+            try { store.removeItem(key); } catch {}
+        });
+    });
+}
 import { findRosterEntryByCandidateId, findRosterEntryByNameAndTesterId, checkInRosterEntry } from "../data/candidate.roster.data.js";
 import { showStep, setError, clearError, getUserFriendlyError } from "../app/candidate.utils.js";
 import { renderConfirmation, switchLoginMethod as switchLoginUI } from "./candidate.auth.view.js";
@@ -65,6 +98,7 @@ export async function handleConfirmEnter() {
     const checkbox = document.getElementById('confirmCheckbox');
     if (!checkbox || !checkbox.checked) return;
 
+    purgeCandidateAttemptKeys(); // Remove old candidate attempt keys
     clearError();
     showStep('stepEntering');
 

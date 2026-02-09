@@ -8,8 +8,11 @@ import { saveAnswer, getAnswer, buildSkillsPayload, applySkillsPayloadToSession,
 import { createAttempt } from "../../db/db.attempts.js";
 import { getAttemptById } from "../../db/db.attempts.js";
 import { markCandidateSubmitted } from "../../db/db.proctor.js";
-import { initTimer, startTimer, stopTimer, hideTimer } from "./candidate.timer.js";
+import { initTimer, stopTimer, hideTimer } from "./candidate.timer.js";
 import { serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { doc, getDoc, updateDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { db } from "../../core/firebase.js";
+import { appendScheduleEvent } from "../../db/db.proctor.js";
 
 export let testPageState = {
     testId: null,
@@ -575,16 +578,9 @@ export async function switchSkill(skillName) {
         bodyEl.classList.add(modeClass);
     }
     
-    // Start timer for the new skill (but not for Listening, which uses audio duration)
+    // Timer is now Firestore-driven; only hide for Listening
     if (normalized === 'Listening') {
         hideTimer();
-    } else {
-        const timeLimit = await getTimeLimitForCurrentSkill();
-        if (timeLimit && timeLimit > 0) {
-            startTimer(timeLimit);
-        } else {
-            hideTimer();
-        }
     }
 
     if (normalized === 'Writing') {
@@ -666,9 +662,26 @@ export async function initCandidateTestPage() {
         const skillParam = urlParams.get('skill');
         const storedSkill = sessionStorage.getItem('currentSkill') || sessionStorage.getItem('candidate_test_skill');
         let skill = skillParam || storedSkill || 'Listening';
-        
-        // Initialize timer
-        initTimer();
+        // Ensure skill start time is set in roster doc
+        const sessionId = sessionStorage.getItem('candidate_schedule_id');
+        const rosterId  = sessionStorage.getItem('candidate_roster_id');
+        await ensureSkillStarted({
+          sessionId,
+          rosterId,
+          skill,
+          testId: testPageState.testId
+        });
+        // Initialize timer (Firestore-driven)
+        initTimer({
+            sessionId,
+            rosterId: sessionStorage.getItem("candidate_roster_id"),
+            skill,
+            onTimeUp: () => {
+                stopTimer();
+                alert("Time is up! Your test will be submitted.");
+                submitTest();
+            }
+        });
 
         // Resume in-progress attempt if available
         try {
@@ -683,14 +696,9 @@ export async function initCandidateTestPage() {
             console.warn('[initCandidateTestPage] Failed to load draft attempt:', e);
         }
         
-        // Start timer for initial skill (but not for Listening, which uses audio duration)
+        // No local timer start; timer is now Firestore-driven
         testPageState.skill = skill;
-        if (skill !== 'Listening') {
-            const timeLimit = await getTimeLimitForCurrentSkill();
-            if (timeLimit && timeLimit > 0) {
-                startTimer(timeLimit);
-            }
-        } else {
+        if (skill === 'Listening') {
             hideTimer();
         }
 
@@ -905,4 +913,48 @@ export async function retryPendingSubmission() {
         console.error('[retryPendingSubmission] Retry failed:', error);
         throw error;
     }
+}
+
+// Helper to ensure skill start time is set in roster doc
+async function ensureSkillStarted({ sessionId, rosterId, skill, testId }) {
+  console.log('[ensureSkillStarted] called with', { sessionId, rosterId, skill, testId });
+  if (!sessionId || !rosterId || !skill) {
+    console.warn('[ensureSkillStarted] missing required params', { sessionId, rosterId, skill });
+    return;
+  }
+
+  const ref = doc(db, "schedules", sessionId, "roster", rosterId);
+  let snap = await getDoc(ref);
+  if (!snap.exists()) {
+    console.warn('[ensureSkillStarted] roster doc does not exist, creating', { sessionId, rosterId });
+    await setDoc(ref, { skillTiming: {} }, { merge: true });
+    snap = await getDoc(ref);
+    if (!snap.exists()) {
+      console.error('[ensureSkillStarted] failed to create roster doc', { sessionId, rosterId });
+      return;
+    }
+  }
+
+  const data = snap.data() || {};
+  const st = (data.skillTiming || {});
+  const cur = st[skill] || {};
+
+  if (cur.startedAt) {
+    console.log('[ensureSkillStarted] startedAt already set for', skill, cur.startedAt);
+    return; // already started
+  }
+
+  const patch = {};
+  patch[`skillTiming.${skill}.startedAt`] = serverTimestamp();
+  console.log('[ensureSkillStarted] setting startedAt for', skill, 'on', ref.path);
+  await updateDoc(ref, patch);
+
+  // log event (deterministic IDs will be fixed in db.proctor.js below)
+  try {
+    await appendScheduleEvent(sessionId, "SKILL_STARTED", {
+      rosterId,
+      skill,
+      testId: testId || null
+    });
+  } catch (e) {}
 }

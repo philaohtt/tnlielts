@@ -16,7 +16,8 @@ import {
     Timestamp,
     onSnapshot,
     arrayUnion,
-    arrayRemove
+    arrayRemove,
+    runTransaction
 } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
 
 // --- Constants ---
@@ -181,13 +182,28 @@ export async function listCandidates({ searchText } = {}) {
 export async function createSchedule({ title, startAt, endAt, durationMs, examId }) {
     if (!title || !startAt || !endAt) throw new Error("Missing required schedule fields");
 
-    // Deterministic session ID: sess_<examId>_<yyyymmdd>
+    // Deterministic session ID: sess_<examId>_<yyyymmdd>_<hhmm>
     const startDate = new Date(startAt);
     if (!examId) throw new Error("examId is required for deterministic session IDs");
     if (isNaN(startDate.getTime())) throw new Error("Invalid startAt date");
 
-    const yyyymmdd = startDate.toISOString().slice(0, 10).replace(/-/g, '');
-    const sessionId = `sess_${examId}_${yyyymmdd}`;
+    const pad2 = (n) => String(n).padStart(2, '0');
+
+    // Use LOCAL date/time (avoids UTC day-shift)
+    const yyyymmdd = `${startDate.getFullYear()}${pad2(startDate.getMonth() + 1)}${pad2(startDate.getDate())}`;
+    const hhmm = `${pad2(startDate.getHours())}${pad2(startDate.getMinutes())}`;
+
+    const baseId = `sess_${examId}_${yyyymmdd}_${hhmm}`;
+    // Collision-proof: if baseId exists, append _02, _03...
+    let sessionId = baseId;
+    let attempt = 1;
+    while (true) {
+      const existsSnap = await getDoc(doc(db, COLL_SCHEDULES, sessionId));
+      if (!existsSnap.exists()) break;
+      attempt += 1;
+      if (attempt > 99) throw new Error("Too many sessions at the same start time; adjust minutes.");
+      sessionId = `${baseId}_${pad2(attempt)}`;
+    }
 
     const newSchedule = {
         title,
@@ -200,32 +216,38 @@ export async function createSchedule({ title, startAt, endAt, durationMs, examId
         paused: false,
         endedAt: null,
         examId: examId || null,
-        date: yyyymmdd,
         examTitleSnapshot: null,
         examComponentsSnapshot: [],
         createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp()
+        updatedAt: serverTimestamp(),
+        date: yyyymmdd,
+        time: hhmm,
+        auditNextSeq: 1
     };
 
-    // If examId provided, load exam and populate snapshots
-    if (examId) {
-        try {
-            const examDoc = await getDoc(doc(db, 'exams', examId));
-            if (examDoc.exists()) {
-                const examData = examDoc.data();
-                newSchedule.examTitleSnapshot = examData.title || '';
-                newSchedule.examComponentsSnapshot = examData.components || [];
-            }
-        } catch (err) {
-            console.warn('Failed to load exam snapshot for schedule:', err);
-        }
-    }
 
+// --- Audit Log Helper: Appends an event to the schedule's event subcollection with deterministic IDs. ---
+// Uses a transaction to reserve the next sequence number.
+// (Duplicate definition removed to fix error)
+
+        // If examId provided, load exam and populate snapshots
+        if (examId) {
+            try {
+                const examDoc = await getDoc(doc(db, 'exams', examId));
+                if (examDoc.exists()) {
+                    const examData = examDoc.data();
+                    newSchedule.examTitleSnapshot = examData.title || '';
+                    newSchedule.examComponentsSnapshot = examData.components || [];
+                }
+            } catch (err) {
+                console.warn('Failed to load exam snapshot for schedule:', err);
+            }
+        }
+
+    // Save the schedule document
     const docRef = doc(db, COLL_SCHEDULES, sessionId);
     await setDoc(docRef, newSchedule);
-    
-    await appendScheduleEvent(docRef.id, 'SCHEDULE_CREATED', { title, examId });
-    
+
     return { id: docRef.id, ...newSchedule };
 }
 

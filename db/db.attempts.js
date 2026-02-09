@@ -12,35 +12,77 @@ const ATTEMPTS_COL = 'attempts';
  * Format: {candidateId}_{candidateName}_{examId}_{timestamp}
  * Example: AR4JDN_Hoang_Thanh_Tung_exam_writing_1_1738627067847
  */
-function generateAttemptId(candidateId, candidateName, examId) {
-    const timestamp = Date.now();
-    const sanitizedCandidateId = String(candidateId || 'unknown').replace(/[^a-zA-Z0-9]/g, '_');
-    const sanitizedCandidateName = String(candidateName || 'unknown').replace(/[^a-zA-Z0-9]/g, '_');
-    const sanitizedExamId = String(examId || 'unknown').replace(/[^a-zA-Z0-9]/g, '_');
-    return `${sanitizedCandidateId}_${sanitizedCandidateName}_${sanitizedExamId}_${timestamp}`;
+
+function sanitizeIdPart(v) {
+    return String(v || 'unknown').trim().replace(/[^a-zA-Z0-9]/g, '_');
 }
+
+/**
+ * Attempt docID rule (Option B):
+ *   att_{scheduleId}_{candidateId}[_NN]
+ * - base: att_{scheduleId}_{candidateId}
+ * - if already exists and you need a new sitting: _02, _03...
+ *
+ * Note: scheduleId is the session/schedule docID (your system uses scheduleId field).
+ */
+async function generateAttemptId(scheduleId, candidateId, mode = 'reuse_if_in_progress') {
+    const sch = sanitizeIdPart(scheduleId);
+    const cand = sanitizeIdPart(candidateId);
+    const baseId = `att_${sch}_${cand}`;
+
+    // 1) If base doesn't exist → use it
+    const baseRef = doc(db, ATTEMPTS_COL, baseId);
+    const baseSnap = await getDoc(baseRef);
+    if (!baseSnap.exists()) return baseId;
+
+    // 2) If base exists and mode is reuse_if_in_progress → reuse if in_progress
+    if (mode === 'reuse_if_in_progress') {
+        const status = String(baseSnap.data()?.status || '').toLowerCase();
+        if (status === 'in_progress') return baseId;
+    }
+
+    // 3) Otherwise create a new sitting _02..._99
+    const pad2 = (n) => String(n).padStart(2, '0');
+    for (let i = 2; i <= 99; i++) {
+        const tryId = `${baseId}_${pad2(i)}`;
+        const trySnap = await getDoc(doc(db, ATTEMPTS_COL, tryId));
+        if (!trySnap.exists()) return tryId;
+    }
+
+    throw new Error('Too many attempts for this candidate in this session. Please adjust policy.');
+}
+
 
 export async function createAttempt(payload = {}) {
     try {
-        // Generate deterministic document ID (allow override)
-        const attemptId = payload.attemptId || generateAttemptId(payload.candidateId, payload.candidateName, payload.examId);
-        
+        if (!payload.scheduleId) throw new Error('scheduleId is required');
+        if (!payload.candidateId) throw new Error('candidateId is required');
+
+        // Option B deterministic id; reuse in-progress attempt when appropriate
+        const attemptId =
+            payload.attemptId ||
+            await generateAttemptId(payload.scheduleId, payload.candidateId, 'reuse_if_in_progress');
+
         const attemptData = {
+            attemptId,
             candidateId: payload.candidateId || null,
             scheduleId: payload.scheduleId || null,
             examId: payload.examId || null,
             testerId: payload.testerId || null,
             candidateName: payload.candidateName || null,
-            answers: payload.answers || null,
-            skills: payload.skills || null,
-            status: payload.status || "submitted",
-            submittedAt: payload.submittedAt || serverTimestamp()
+            // Option B: parent doc stores meta only
+            status: payload.status || 'in_progress',
+            startedAt: payload.startedAt || serverTimestamp(),
+            submittedAt: payload.submittedAt || null,
+            updatedAt: serverTimestamp()
         };
 
-        await setDoc(doc(db, ATTEMPTS_COL, attemptId), attemptData);
-        return { id: attemptId };
+        // Use merge so calling createAttempt again doesn't wipe fields
+        await setDoc(doc(db, ATTEMPTS_COL, attemptId), attemptData, { merge: true });
+
+        return { id: attemptId, attemptId };
     } catch (e) {
-        console.error("Error creating attempt:", e);
+        console.error('Error creating attempt:', e);
         throw e;
     }
 }
@@ -55,7 +97,6 @@ export async function upsertAttemptProgress(payload = {}) {
             examId: payload.examId || null,
             testerId: payload.testerId || null,
             candidateName: payload.candidateName || null,
-            skills: payload.skills || null,
             status: payload.status || 'in_progress',
             updatedAt: serverTimestamp()
         };
@@ -67,16 +108,64 @@ export async function upsertAttemptProgress(payload = {}) {
     }
 }
 
-export function hasSkill(attempt, skill) {
-    if (!attempt || !skill) return false;
-    const key = String(skill || '').toLowerCase();
-    return !!attempt.skills && Object.prototype.hasOwnProperty.call(attempt.skills, key);
+
+function normalizeSkill(skill) {
+    return String(skill || '').trim().toLowerCase();
 }
 
-export function getAttemptSkill(attempt, skill) {
-    if (!attempt || !skill) return null;
-    const key = String(skill || '').toLowerCase();
-    return attempt.skills ? attempt.skills[key] || null : null;
+function skillDocRef(attemptId, skill) {
+    const s = normalizeSkill(skill);
+    if (!['listening', 'reading', 'writing', 'speaking'].includes(s)) {
+        throw new Error(`Invalid skill: ${skill}`);
+    }
+    return doc(db, ATTEMPTS_COL, attemptId, 'skills', s);
+}
+
+/**
+ * Option B: upsert answers for one skill
+ * attempt/{attemptId}/skills/{skill}
+ */
+export async function upsertAttemptSkill(attemptId, skill, payload = {}) {
+    if (!attemptId) throw new Error('attemptId is required');
+    const s = normalizeSkill(skill);
+
+    const data = {
+        skill: s,
+        answers: payload.answers || {},     // normalized canonical answers
+        autoscore: payload.autoscore || null,
+        manual: payload.manual || null,
+        updatedAt: serverTimestamp()
+    };
+
+        await setDoc(skillDocRef(attemptId, s), data, { merge: true });
+        // Also set skillFlags on root for filtering
+        await setDoc(doc(db, ATTEMPTS_COL, attemptId), {
+            skillFlags: { [s]: true },
+            updatedAt: serverTimestamp()
+        }, { merge: true });
+        return { ok: true };
+}
+
+/**
+ * Load one skill doc
+ */
+export async function getAttemptSkillDoc(attemptId, skill) {
+    if (!attemptId) throw new Error('attemptId is required');
+    const s = normalizeSkill(skill);
+
+    const snap = await getDoc(skillDocRef(attemptId, s));
+    if (!snap.exists()) return null;
+    return { id: snap.id, ...snap.data() };
+}
+
+// Option B async versions
+export async function hasSkill(attemptId, skill) {
+    const docData = await getAttemptSkillDoc(attemptId, skill);
+    return !!docData;
+}
+
+export async function getAttemptSkill(attemptId, skill) {
+    return await getAttemptSkillDoc(attemptId, skill);
 }
 
 export async function listAttempts(filters = {}) {
@@ -97,7 +186,8 @@ export async function listAttempts(filters = {}) {
             results = results.filter(a => String(a.scheduleId || '') === String(scheduleId));
         }
         if (skill) {
-            results = results.filter(a => hasSkill(a, skill));
+            const s = String(skill).toLowerCase();
+            results = results.filter(a => a.skillFlags && a.skillFlags[s]);
         }
 
         return results;
@@ -141,25 +231,12 @@ export async function updateAttempt(attemptId, patchObj = {}) {
  * @returns {Promise<{ok: boolean}>}
  */
 export async function saveAutoScore(attemptId, autoScorePayload) {
-    if (!attemptId) throw new Error('attemptId is required');
-    if (!autoScorePayload || !autoScorePayload.skill) {
-        throw new Error('autoScorePayload must contain skill property');
-    }
+  if (!attemptId) throw new Error('attemptId is required');
+  if (!autoScorePayload || !autoScorePayload.skill) {
+    throw new Error('autoScorePayload must contain skill property');
+  }
 
-    try {
-        const skill = String(autoScorePayload.skill).toLowerCase();
-        
-        // Use dot-path notation to update only the specific skill's auto-score
-        // This preserves grading.manual and grading.auto for other skills
-        const updatePayload = {
-            [`grading.auto.${skill}`]: autoScorePayload,
-            'grading.autoUpdatedAt': serverTimestamp()
-        };
-
-        await updateAttempt(attemptId, updatePayload);
-        return { ok: true };
-    } catch (e) {
-        console.error('Error saving auto-score:', e);
-        throw e;
-    }
+  const s = String(autoScorePayload.skill).toLowerCase();
+  await upsertAttemptSkill(attemptId, s, { autoscore: autoScorePayload });
+  return { ok: true };
 }

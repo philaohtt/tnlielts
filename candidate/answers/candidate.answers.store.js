@@ -101,27 +101,16 @@ function sanitizeForId(value) {
 }
 
 export function ensureAttemptId() {
-    const existing = sessionStorage.getItem('test_attempt_id');
-    if (existing) return existing;
-    try {
-        if (typeof localStorage !== 'undefined') {
-            const cached = localStorage.getItem('test_attempt_id');
-            if (cached) {
-                sessionStorage.setItem('test_attempt_id', cached);
-                return cached;
-            }
-        }
-    } catch (e) {
-        console.warn('[answers] localStorage attemptId read failed:', e);
-    }
-    const candidateId = sessionStorage.getItem('candidate_roster_id') || sessionStorage.getItem('candidate_tester_id');
+    // Remove global reuse logic. AttemptId will be stored per-candidate.
+    const candidateKey = sessionStorage.getItem('candidate_roster_id') || sessionStorage.getItem('candidate_tester_id');
     const scheduleId = sessionStorage.getItem('candidate_schedule_id');
     const examId = sessionStorage.getItem('candidate_exam_id');
-    if (!candidateId || !scheduleId || !examId) return null;
-    const attemptId = `draft_${sanitizeForId(candidateId)}_${sanitizeForId(scheduleId)}_${sanitizeForId(examId)}`;
-    sessionStorage.setItem('test_attempt_id', attemptId);
+    if (!candidateKey || !scheduleId || !examId) return null;
+    const attemptId = `draft_${sanitizeForId(candidateKey)}_${sanitizeForId(scheduleId)}_${sanitizeForId(examId)}`;
+    const storageKey = `test_attempt_id:${candidateKey}`;
+    sessionStorage.setItem(storageKey, attemptId);
     try {
-        if (typeof localStorage !== 'undefined') localStorage.setItem('test_attempt_id', attemptId);
+        if (typeof localStorage !== 'undefined') localStorage.setItem(storageKey, attemptId);
     } catch (e) {
         console.warn('[answers] localStorage attemptId write failed:', e);
     }
@@ -269,12 +258,12 @@ export function saveAnswer({ skill, testId, type, id, value }) {
         return;
     }
     
-    // Build canonical key structure
-    const key = `canonical:${normalizedSkill}:${testId}:${type}:${id}`;
+    const attemptId = ensureAttemptId();
+    if (!attemptId) return;
+    const key = `canonical:${attemptId}:${normalizedSkill}:${testId}:${type}:${id}`;
     const storageValue = (type === 'mcq' || type === 'matching') 
         ? JSON.stringify(value) 
         : String(value ?? '');
-    
     writeToStorages(key, storageValue);
     queueProgressSync();
 }
@@ -294,12 +283,12 @@ export function getAnswer({ skill, testId, type, id }) {
         return null;
     }
     
+    const attemptId = ensureAttemptId();
+    if (!attemptId) return null;
     const normalizedSkill = String(skill).toLowerCase();
-    const key = `canonical:${normalizedSkill}:${testId}:${type}:${id}`;
+    const key = `canonical:${attemptId}:${normalizedSkill}:${testId}:${type}:${id}`;
     const raw = readFromStorages(key);
-    
     if (!raw) return (type === 'mcq' || type === 'matching') ? null : '';
-    
     if (type === 'mcq' || type === 'matching') {
         try {
             return JSON.parse(raw);
@@ -307,7 +296,6 @@ export function getAnswer({ skill, testId, type, id }) {
             return null;
         }
     }
-    
     return raw;
 }
 
@@ -342,25 +330,24 @@ function parseAnswerEntry(skills, key, value, ctx) {
     const rawValue = safeJsonParse(value);
     const skillSet = new Set(['listening', 'reading', 'writing', 'speaking']);
 
-    // ONLY canonical format: canonical:skill:testId:type:id
+    // ONLY canonical format: canonical:attemptId:skill:testId:type:id
     if (typeof key === 'string' && key.startsWith('canonical:')) {
         const parts = key.split(':');
-        // parts: ['canonical', skill, testId, type, ...idParts]
-        if (parts.length < 5) {
-            console.warn(`[answers] Malformed canonical key: ${key}`);
+        // parts: ['canonical', attemptId, skill, testId, type, ...idParts]
+        if (parts.length < 6) {
+            // Ignore old canonical keys (legacy)
+            console.warn(`[answers] Malformed or legacy canonical key: ${key}`);
             return;
         }
-        
-        const skill = parts[1];
-        const testId = parts[2];
-        const type = parts[3];
-        const idKey = parts.slice(4).join(':');
-        
+        const attemptId = parts[1];
+        const skill = parts[2];
+        const testId = parts[3];
+        const type = parts[4];
+        const idKey = parts.slice(5).join(':');
         if (!skillSet.has(skill)) {
             console.warn(`[answers] Invalid skill in canonical key: ${skill}`);
             return;
         }
-        
         const blocksSnapshot = ctx?.blocksSnapshotBySkill?.[skill] || ctx?.blocksSnapshot?.[skill] || null;
         addAnswer(skills, skill, testId, type, idKey, rawValue, blocksSnapshot);
         return;
