@@ -41,31 +41,26 @@ export function renderReadingMode(ctx) {
             const slots = mhBlock.data.slots || [];
             const options = mhBlock.data.options || [];
             const blockId = mhBlock.id || 'matching_headings_' + Math.random().toString(36).substr(2, 9);
-            
             // Parse passage HTML to find paragraphs
             const tempDiv = document.createElement('div');
             tempDiv.innerHTML = html;
             const children = Array.from(tempDiv.children);
-            
             // Get saved answers for this block to show in drop zones
             const savedMatches = answerContextGlobal && typeof answerContextGlobal.getAnswer === 'function' ? (answerContextGlobal.getAnswer(blockId) || {}) : {};
-            
             // For each slot, inject a drop zone at the appropriate paragraph
             // Sort by paraIndex in reverse order to avoid index shifting
             const sortedSlots = [...slots].sort((a, b) => (b.paraIndex || 0) - (a.paraIndex || 0));
-            
-            // Create a mapping of slotId to question number
+            // Create a mapping of slotId to question number (robust: check slotId or id)
             const slotToNumber = {};
             let questionNum = 1;
             [...slots].sort((a, b) => (a.paraIndex || 0) - (b.paraIndex || 0)).forEach(s => {
-                slotToNumber[s.slotId] = questionNum++;
+                const id = s.slotId || s.id;
+                slotToNumber[id] = questionNum++;
             });
-            
             sortedSlots.forEach((slot) => {
                 const paraIndex = slot.paraIndex;
-                const slotId = slot.slotId;
+                const slotId = slot.slotId || slot.id;
                 const questionNumber = slotToNumber[slotId];
-                
                 if (paraIndex >= 0 && paraIndex < children.length) {
                     const para = children[paraIndex];
                     if (para) {
@@ -74,25 +69,19 @@ export function renderReadingMode(ctx) {
                         const matchedOption = matchedLetter 
                             ? options.find((opt, optIdx) => String.fromCharCode(65 + optIdx) === matchedLetter)
                             : null;
-                        
                         // Create the drop zone HTML as a span element
                         const dropZoneSpan = document.createElement('span');
                         dropZoneSpan.className = 'mh-passage-drop-zone';
                         dropZoneSpan.setAttribute('data-slot-id', slotId);
                         dropZoneSpan.setAttribute('data-question-number', questionNumber);
                         dropZoneSpan.draggable = true;
-                        
                         if (matchedOption) {
-                            // Show the matched heading
                             dropZoneSpan.style.cssText = 'display: inline-block; min-width: 140px; min-height: 22px; border: 2px solid #0284c7; background: #e0f2fe; border-radius: 4px; padding: 2px 6px; margin: 0 4px 0 0; vertical-align: baseline; line-height: 1.2; transition: 0.2s; cursor: pointer; font-size: 13px;';
                             dropZoneSpan.innerHTML = `<span style="color: #0284c7; font-weight: 700; margin-right: 4px;">${matchedLetter}</span><span style="color: #0c4a6e;">${matchedOption.text || ''}</span>`;
                         } else {
-                            // Show empty drop zone with question number
                             dropZoneSpan.style.cssText = 'display: inline-block; min-width: 140px; min-height: 22px; border: 2px dashed #cbd5e1; background: #fbfcfd; border-radius: 4px; padding: 2px 6px; margin: 0 4px 0 0; vertical-align: baseline; line-height: 1.2; transition: 0.2s; cursor: pointer; font-size: 13px;';
                             dropZoneSpan.innerHTML = `<span class="mh-drop-zone-number" style="color: #0284c7; font-weight: 700; margin-right: 6px; font-size: 14px;">${questionNumber}</span><span style="color: #94a3b8; font-style: italic;">___</span>`;
                         }
-                        
-                        // Insert at the beginning of the paragraph
                         if (para.firstChild) {
                             para.insertBefore(dropZoneSpan, para.firstChild);
                         } else {
@@ -101,8 +90,6 @@ export function renderReadingMode(ctx) {
                     }
                 }
             });
-            
-            // Get the modified HTML back from tempDiv
             html = tempDiv.innerHTML;
         }
         
@@ -354,7 +341,6 @@ function renderPartRow(ctx) {
         return blocks.reduce((sum, block) => {
             const type = (block?.type || '').toLowerCase();
             const data = block?.data || {};
-            
             if (type === 'gap_fill') {
                 const temp = document.createElement('div');
                 temp.innerHTML = data.passageHtml || '';
@@ -366,7 +352,17 @@ function renderPartRow(ctx) {
             if (type === 'matching_visual') return sum + (Array.isArray(data.zones) ? data.zones.filter(z => z && z.kind === 'gap').length : 0);
             if (type === 'mcq_set') {
                 const questions = Array.isArray(data.questions) ? data.questions : [];
-                return sum + questions.reduce((qSum, q) => qSum + (q.correctAnswerCount || (q.allowMultiple ? 2 : 1)), 0);
+                return sum + questions.reduce((qSum, q) => {
+                    let correctAnswerCount = q.correctAnswerCount;
+                    if (!correctAnswerCount) {
+                        if (Array.isArray(q.correctIndices) && q.correctIndices.length > 0) {
+                            correctAnswerCount = q.correctIndices.length;
+                        } else {
+                            correctAnswerCount = (q.allowMultiple ? 2 : 1);
+                        }
+                    }
+                    return qSum + correctAnswerCount;
+                }, 0);
             }
             if (type === 'tfng') return sum + (Array.isArray(data.questions) ? data.questions.length : 0);
             return sum;
@@ -418,7 +414,6 @@ function renderQuestionRow(ctx) {
             offset += Array.from(blocks).reduce((sum, block) => {
                 const type = (block?.type || '').toLowerCase();
                 const data = block?.data || {};
-                
                 if (type === 'gap_fill') {
                     const temp = document.createElement('div');
                     temp.innerHTML = data.passageHtml || '';
@@ -430,7 +425,17 @@ function renderQuestionRow(ctx) {
                 if (type === 'matching_visual') return sum + (Array.isArray(data.zones) ? data.zones.filter(z => z && z.kind === 'gap').length : 0);
                 if (type === 'mcq_set') {
                     const questions = Array.isArray(data.questions) ? data.questions : [];
-                    return sum + questions.reduce((qSum, q) => qSum + (q.correctAnswerCount || (q.allowMultiple ? 2 : 1)), 0);
+                    return sum + questions.reduce((qSum, q) => {
+                        let correctAnswerCount = q.correctAnswerCount;
+                        if (!correctAnswerCount) {
+                            if (Array.isArray(q.correctIndices) && q.correctIndices.length > 0) {
+                                correctAnswerCount = q.correctIndices.length;
+                            } else {
+                                correctAnswerCount = (q.allowMultiple ? 2 : 1);
+                            }
+                        }
+                        return qSum + correctAnswerCount;
+                    }, 0);
                 }
                 if (type === 'tfng') return sum + (Array.isArray(data.questions) ? data.questions.length : 0);
                 return sum;
@@ -471,13 +476,14 @@ function renderQuestionRow(ctx) {
         } else if (type === 'mcq_set') {
             const questions = Array.isArray(data.questions) ? data.questions : [];
             questions.forEach((q, qIdx) => {
-                // Use correctIndices.length if correctAnswerCount is not set
+                // IMPROVED LOGIC
                 let correctAnswerCount = q.correctAnswerCount;
-                if (!correctAnswerCount && Array.isArray(q.correctIndices)) {
-                    correctAnswerCount = q.correctIndices.length;
-                }
                 if (!correctAnswerCount) {
-                    correctAnswerCount = q.allowMultiple ? 2 : 1;
+                    if (Array.isArray(q.correctIndices) && q.correctIndices.length > 0) {
+                        correctAnswerCount = q.correctIndices.length;
+                    } else {
+                        correctAnswerCount = (q.allowMultiple ? 2 : 1);
+                    }
                 }
                 const startNum = currentNum;
                 currentNum += correctAnswerCount;
@@ -547,12 +553,18 @@ function renderQuestionRow(ctx) {
             questions.forEach((q, qIdx) => {
                 const key = `${blockIdx}-${qIdx}`;
                 const numberDisplay = mcqNumberRanges[key] || '';
-                const correctAnswerCount = q.correctAnswerCount || (q.allowMultiple ? 2 : 1);
                 const isActive = currentGlobalNum === activeQuestionNum;
                 const hasAns = hasAnswer(currentGlobalNum);
-
-                // For MCQ with multiple correct answers, show a single card with the range (e.g., 28-30)
                 html += `<button class="question-num-btn ${isActive ? 'active' : ''} ${hasAns ? 'has-answer' : ''}" data-qnum="${currentGlobalNum}" title="Question ${numberDisplay}">${numberDisplay}</button>`;
+                // IMPROVED LOGIC
+                let correctAnswerCount = q.correctAnswerCount;
+                if (!correctAnswerCount) {
+                    if (Array.isArray(q.correctIndices) && q.correctIndices.length > 0) {
+                        correctAnswerCount = q.correctIndices.length;
+                    } else {
+                        correctAnswerCount = (q.allowMultiple ? 2 : 1);
+                    }
+                }
                 currentGlobalNum += correctAnswerCount;
             });
         } else {
@@ -657,7 +669,17 @@ function updateReadingRightNav(startNum, endNum, ctx) {
             if (type === 'matching_visual') return acc + (Array.isArray(data.zones) ? data.zones.filter(z => z && z.kind === 'gap').length : 0);
             if (type === 'mcq_set') {
                 const questions = Array.isArray(data.questions) ? data.questions : [];
-                return acc + questions.reduce((qSum, q) => qSum + (q.correctAnswerCount || (q.allowMultiple ? 2 : 1)), 0);
+                return acc + questions.reduce((qSum, q) => {
+                    let count = q.correctAnswerCount;
+                    if (!count) {
+                        if (Array.isArray(q.correctIndices) && q.correctIndices.length > 0) {
+                            count = q.correctIndices.length;
+                        } else {
+                            count = q.allowMultiple ? 2 : 1;
+                        }
+                    }
+                    return qSum + count;
+                }, 0);
             }
             if (type === 'tfng') return acc + (Array.isArray(data.questions) ? data.questions.length : 0);
             return acc;
@@ -919,7 +941,8 @@ function setupReadingBlockEventHandlers(questionsContent, ctx) {
             option.draggable = true;
             option.addEventListener('dragstart', (e) => {
                 e.dataTransfer.effectAllowed = 'move';
-                e.dataTransfer.setData('text/plain', option.dataset.optionId);
+                // FIX: Use optionLetter
+                e.dataTransfer.setData('text/plain', option.dataset.optionLetter);
             });
         });
 
@@ -934,10 +957,14 @@ function setupReadingBlockEventHandlers(questionsContent, ctx) {
             });
             target.addEventListener('drop', (e) => {
                 e.preventDefault();
-                const optionId = e.dataTransfer.getData('text/plain');
-                const targetId = target.dataset.targetId;
-                if (optionId && targetId) {
-                    answerCtx.setAnswer(blockId, { targetId, optionId });
+                // FIX: Retrieve letter
+                const optionLetter = e.dataTransfer.getData('text/plain');
+                const itemNum = target.dataset.itemNum; // Use item number as key
+                if (optionLetter && itemNum) {
+                    // FIX: Read-Modify-Write pattern
+                    const currentMatches = answerCtx.getAnswer(blockId) || {};
+                    currentMatches[itemNum] = optionLetter;
+                    answerCtx.setAnswer(blockId, currentMatches);
                     const qnum = parseInt(target.dataset.qnum, 10);
                     if (!Number.isNaN(qnum)) {
                         updateQuestionButtonStatus(qnum);
@@ -961,11 +988,36 @@ function setupReadingBlockEventHandlers(questionsContent, ctx) {
             pill.draggable = true;
             pill.addEventListener('dragstart', (e) => {
                 e.dataTransfer.effectAllowed = 'move';
-                e.dataTransfer.setData('text/plain', pill.dataset.optionId);
+                // FIX: Use optionLetter (renderer sets this, not optionId)
+                e.dataTransfer.setData('text/plain', pill.dataset.optionLetter);
             });
         });
 
+        // Helper to re-render the block after answer changes
+        function rerenderBlock() {
+            // Find the block data and context
+            const blockData = ctx.sections
+                ? (ctx.sections[ctx.sectionIndex]?.questions || ctx.sections[ctx.sectionIndex]?.blocks || []).find(b => b.id === blockId)
+                : null;
+            if (!blockData) return;
+            // Find the render function
+            const renderMatchingVisualBlock = window.renderMatchingVisualBlock || (window.candidateBlocks && window.candidateBlocks.renderMatchingVisualBlock);
+            if (typeof renderMatchingVisualBlock === 'function') {
+                const html = renderMatchingVisualBlock(blockData, answerCtx);
+                // Replace the block's HTML
+                const temp = document.createElement('div');
+                temp.innerHTML = html;
+                const newBlock = temp.firstElementChild;
+                if (newBlock && block.parentNode) {
+                    block.parentNode.replaceChild(newBlock, block);
+                    // Re-setup event handlers for the new block
+                    setupReadingBlockEventHandlers(newBlock, ctx);
+                }
+            }
+        }
+
         zones.forEach(zone => {
+            // --- Drag over/drop logic (existing) ---
             zone.addEventListener('dragover', (e) => {
                 e.preventDefault();
                 e.dataTransfer.dropEffect = 'move';
@@ -974,12 +1026,24 @@ function setupReadingBlockEventHandlers(questionsContent, ctx) {
             zone.addEventListener('dragleave', () => {
                 zone.classList.remove('is-over');
             });
+            // --- Drop handler: place pill ---
             zone.addEventListener('drop', (e) => {
                 e.preventDefault();
-                const optionId = e.dataTransfer.getData('text/plain');
-                const zoneId = zone.dataset.zoneId;
-                if (optionId && zoneId) {
-                    answerCtx.setAnswer(blockId, { zoneId, optionId });
+                const optionLetter = e.dataTransfer.getData('text/plain');
+                const zoneNum = zone.dataset.zoneNum;
+                if (optionLetter && zoneNum) {
+                    const matches = answerCtx.getAnswer(blockId) || {};
+                    matches[zoneNum] = optionLetter;
+                    answerCtx.setAnswer(blockId, matches);
+                    // UI update: show placed pill, make it draggable and double-clickable
+                    zone.innerHTML = `<span class="mc-placed-pill" data-option-letter="${optionLetter}" draggable="true" style="cursor:grab;">${optionLetter}</span>`;
+                    zone.classList.add('has-answer');
+                    // Optionally, disable the pill in the bank (if needed)
+                    const pill = block.querySelector(`.mc-pill[data-option-letter="${optionLetter}"]`);
+                    if (pill) {
+                        pill.classList.add('used');
+                        pill.setAttribute('draggable', 'false');
+                    }
                     const qnum = parseInt(zone.dataset.qnum, 10);
                     if (!Number.isNaN(qnum)) {
                         updateQuestionButtonStatus(qnum);
@@ -987,6 +1051,63 @@ function setupReadingBlockEventHandlers(questionsContent, ctx) {
                     updatePartRowCounts();
                 }
                 zone.classList.remove('is-over');
+            });
+            // --- Double-click to remove pill from zone ---
+            zone.addEventListener('dblclick', (e) => {
+                const pill = zone.querySelector('.mc-placed-pill');
+                if (pill) {
+                    const optionLetter = pill.dataset.optionLetter;
+                    const zoneNum = zone.dataset.zoneNum;
+                    if (optionLetter && zoneNum) {
+                        const matches = answerCtx.getAnswer(blockId) || {};
+                        delete matches[zoneNum];
+                        answerCtx.setAnswer(blockId, matches);
+                        rerenderBlock();
+                        // No need to manually update UI or pills, rerender handles it
+                        const qnum = parseInt(zone.dataset.qnum, 10);
+                        if (!Number.isNaN(qnum)) {
+                            updateQuestionButtonStatus(qnum);
+                        }
+                        updatePartRowCounts();
+                    }
+                }
+            });
+
+            // --- Drag out to remove pill from zone ---
+            zone.addEventListener('dragstart', (e) => {
+                const pill = zone.querySelector('.mc-placed-pill');
+                if (pill) {
+                    const optionLetter = pill.dataset.optionLetter;
+                    if (optionLetter) {
+                        e.dataTransfer.effectAllowed = 'move';
+                        e.dataTransfer.setData('text/plain', optionLetter);
+                        // Mark this zone as the drag source
+                        zone.classList.add('drag-source');
+                    }
+                }
+            });
+            zone.addEventListener('dragend', (e) => {
+                // If dropped outside a valid target, remove the answer
+                if (zone.classList.contains('drag-source') && e.dataTransfer.dropEffect === 'none') {
+                    const pill = zone.querySelector('.mc-placed-pill');
+                    if (pill) {
+                        const optionLetter = pill.dataset.optionLetter;
+                        const zoneNum = zone.dataset.zoneNum;
+                        if (optionLetter && zoneNum) {
+                            const matches = answerCtx.getAnswer(blockId) || {};
+                            delete matches[zoneNum];
+                            answerCtx.setAnswer(blockId, matches);
+                            rerenderBlock();
+                            // No need to manually update UI or pills, rerender handles it
+                            const qnum = parseInt(zone.dataset.qnum, 10);
+                            if (!Number.isNaN(qnum)) {
+                                updateQuestionButtonStatus(qnum);
+                            }
+                            updatePartRowCounts();
+                        }
+                    }
+                    zone.classList.remove('drag-source');
+                }
             });
         });
     });
@@ -1250,7 +1371,15 @@ function applyReadingGlobalNumbering(questionsContent, testDoc, sectionIndex) {
         if (type === 'mcq_set') {
             const questions = Array.isArray(data.questions) ? data.questions : [];
             return questions.reduce((sum, q) => {
-                const correctAnswerCount = q.correctAnswerCount || (q.allowMultiple ? 2 : 1);
+                // IMPROVED LOGIC
+                let correctAnswerCount = q.correctAnswerCount;
+                if (!correctAnswerCount) {
+                    if (Array.isArray(q.correctIndices) && q.correctIndices.length > 0) {
+                        correctAnswerCount = q.correctIndices.length;
+                    } else {
+                        correctAnswerCount = (q.allowMultiple ? 2 : 1);
+                    }
+                }
                 return sum + correctAnswerCount;
             }, 0);
         }
@@ -1383,19 +1512,26 @@ function applyReadingGlobalNumbering(questionsContent, testDoc, sectionIndex) {
             const questions = block.data?.questions || [];
             nums.forEach((numEl, i) => {
                 const question = questions[i] || {};
-                // Determine number of correct answers for this question
-                const correctAnswerCount = question.correctAnswerCount || (question.allowMultiple ? 2 : 1);
-                
+                // FIXED LOGIC: Check correctIndices length first
+                let correctAnswerCount = question.correctAnswerCount;
+                if (!correctAnswerCount) {
+                    if (Array.isArray(question.correctIndices) && question.correctIndices.length > 0) {
+                        correctAnswerCount = question.correctIndices.length;
+                    } else {
+                        correctAnswerCount = question.allowMultiple ? 2 : 1;
+                    }
+                }
+
                 // Assign consecutive numbers based on correct answer count
                 const startNum = counter + 1;
                 counter += correctAnswerCount;
-                
+
                 if (correctAnswerCount > 1) {
                     numEl.textContent = `${startNum}-${counter}`;
                 } else {
                     numEl.textContent = String(startNum);
                 }
-                
+
                 // Get the outer container div (parent of the div containing the span)
                 const titleEl = numEl.closest('div')?.parentElement;
                 if (titleEl) {

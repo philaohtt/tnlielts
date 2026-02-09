@@ -346,14 +346,15 @@ export function renderListeningTestUI() {
         if (type === 'mcq_set') {
             const questions = Array.isArray(data.questions) ? data.questions : [];
             return questions.reduce((sum, q) => {
-                let correctAnswerCount = q.correctAnswerCount;
-                if (!correctAnswerCount && Array.isArray(q.correctIndices)) {
-                    correctAnswerCount = q.correctIndices.length;
+                let count = q.correctAnswerCount;
+                if (!count) {
+                    if (Array.isArray(q.correctIndices) && q.correctIndices.length > 0) {
+                        count = q.correctIndices.length;
+                    } else {
+                        count = q.allowMultiple ? 2 : 1;
+                    }
                 }
-                if (!correctAnswerCount) {
-                    correctAnswerCount = q.allowMultiple ? 2 : 1;
-                }
-                return sum + correctAnswerCount;
+                return sum + count;
             }, 0);
         }
         return 0;
@@ -603,22 +604,24 @@ export function renderListeningTestUI() {
                     const questions = block.data?.questions || [];
                     nums.forEach((numEl, qIdx) => {
                         const question = questions[qIdx] || {};
+                        // FIXED LOGIC: Check correctIndices length first
                         let correctAnswerCount = question.correctAnswerCount;
-                        if (!correctAnswerCount && Array.isArray(question.correctIndices)) {
-                            correctAnswerCount = question.correctIndices.length;
-                        }
                         if (!correctAnswerCount) {
-                            correctAnswerCount = question.allowMultiple ? 2 : 1;
+                            if (Array.isArray(question.correctIndices) && question.correctIndices.length > 0) {
+                                correctAnswerCount = question.correctIndices.length;
+                            } else {
+                                correctAnswerCount = question.allowMultiple ? 2 : 1;
+                            }
                         }
                         const startNum = counter + 1;
                         counter += correctAnswerCount;
-
+                        
                         if (correctAnswerCount > 1) {
                             numEl.textContent = `${startNum}-${counter}`;
                         } else {
                             numEl.textContent = String(startNum);
                         }
-
+                        
                         // Get the outer container div (parent of the div containing the span)
                         const titleEl = numEl.closest('div')?.parentElement;
                         if (titleEl) {
@@ -709,13 +712,14 @@ export function renderListeningTestUI() {
                             // Handle MCQ questions with potential multi-answer
                             const questions = Array.isArray(data.questions) ? data.questions : [];
                             questions.forEach(q => {
-                                // Use correctIndices.length if correctAnswerCount is not set
+                                // IMPROVED LOGIC
                                 let correctAnswerCount = q.correctAnswerCount;
-                                if (!correctAnswerCount && Array.isArray(q.correctIndices)) {
-                                    correctAnswerCount = q.correctIndices.length;
-                                }
                                 if (!correctAnswerCount) {
-                                    correctAnswerCount = q.allowMultiple ? 2 : 1;
+                                    if (Array.isArray(q.correctIndices) && q.correctIndices.length > 0) {
+                                        correctAnswerCount = q.correctIndices.length;
+                                    } else {
+                                        correctAnswerCount = (q.allowMultiple ? 2 : 1);
+                                    }
                                 }
                                 const startNum = currentGlobalNum;
                                 const endNum = currentGlobalNum + correctAnswerCount - 1;

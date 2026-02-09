@@ -239,7 +239,14 @@ export function countAnsweredQuestionsInSection(section, testId, skill = 'readin
                 
                 if (isAnswered) {
                     // Count based on correctAnswerCount (for multi-answer questions like "choose TWO")
-                    const count = q.correctAnswerCount || (q.allowMultiple ? 2 : 1);
+                    let count = q.correctAnswerCount;
+                    if (!count) {
+                        if (Array.isArray(q.correctIndices) && q.correctIndices.length > 0) {
+                            count = q.correctIndices.length;
+                        } else {
+                            count = q.allowMultiple ? 2 : 1;
+                        }
+                    }
                     answeredCount += count;
                 }
             });
